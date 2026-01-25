@@ -2108,7 +2108,7 @@
         // Service Worker 등록 (PWA 지원)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('./service-worker.js')
                     .then((registration) => {
                         console.log('Service Worker 등록 성공:', registration.scope);
                     })
@@ -2117,37 +2117,4 @@
                     });
             });
         }
-
-        // 설치 프롬프트 처리
-        let deferredPrompt;
-        const installButton = document.createElement('button');
-        installButton.textContent = '앱 설치';
-        installButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; background: #617dff; color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; z-index: 9999; box-shadow: 0 4px 12px rgba(97, 125, 255, 0.4); display: none;';
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`사용자 선택: ${outcome}`);
-                deferredPrompt = null;
-                installButton.style.display = 'none';
-            }
-        });
-        document.body.appendChild(installButton);
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installButton.style.display = 'block';
-        });
-
-        window.addEventListener('appinstalled', () => {
-            console.log('앱이 설치되었습니다.');
-            installButton.style.display = 'none';
-            deferredPrompt = null;
-        });
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            // 필요시 설치 버튼 표시 로직 추가 가능
-        });
 
