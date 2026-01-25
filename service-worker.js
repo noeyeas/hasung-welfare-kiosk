@@ -1,11 +1,11 @@
-const CACHE_NAME = 'hasung-kiosk-v3';
+const CACHE_NAME = 'hasung-kiosk-v4';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/script.js',
-  '/logo.png',
-  '/manifest.json'
+  './',
+  './index.html',
+  './css/styles.css',
+  './js/script.js',
+  './logo.png',
+  './manifest.json'
 ];
 
 // 설치 이벤트 - 캐시 저장
@@ -48,6 +48,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // GET 요청만 캐시 처리
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // http/https 스킴만 처리 (chrome-extension 등 제외)
+  const url = new URL(event.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     return;
   }
 
