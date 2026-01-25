@@ -1408,6 +1408,9 @@
                 loginLog = await loadLoginLog();
 
                 console.log('Data loaded from IndexedDB');
+
+                // 데이터 로드 후 물품 목록 렌더링
+                renderItems();
             } catch (error) {
                 console.error('Initialization error:', error);
             }
