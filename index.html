@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#617dff">
+    <meta name="description" content="인공지능융합대학 하성 복지물품 대여 및 관리 키오스크">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="하성 키오스크">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <title></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS 파일 분리 -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- 브랜드 로고 -->
+    <div id="brandLogo" class="brand-logo">
+        <img src="logo.png" alt="하성 로고">
+        <div class="brand-text">
+            인공지능융합대학 제3대 학생회
+            <div class="brand-subtitle">복지물품 대여 키오스크</div>
+        </div>
+    </div>
+
+    <section class="kiosk">
+        <h1 id="mainTitle">인공지능융합대학 하성 복지물품 키오스크</h1>
+        <p id="mainDescription">터치로 정보를 입력하면 바로 물품을 대여·수령할 수 있습니다.</p>
+
+        <section id="step-admin" class="hidden">
+            <div id="adminTitle" class="step-title">관리자 모드</div>
+
+            <!-- 통계 대시보드 -->
+            <div id="adminDashboard" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #1a2e3a, #11131c); border: 1px solid #2c4a5a; border-radius: 16px; padding: 20px; text-align: center;">
+                    <div style="font-size: 0.9rem; color: #6cb4d8; margin-bottom: 8px;">📅 오늘 대여 건수</div>
+                    <div id="statTodayBorrow" style="font-size: 2.2rem; font-weight: 700; color: #a0d8f0;">0</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #2e2a1a, #11131c); border: 1px solid #5a4a2c; border-radius: 16px; padding: 20px; text-align: center;">
+                    <div style="font-size: 0.9rem; color: #d8b46c; margin-bottom: 8px;">📦 현재 총 대여 중</div>
+                    <div id="statTotalBorrowed" style="font-size: 2.2rem; font-weight: 700; color: #f0d8a0;">0</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #2e1a1a, #11131c); border: 1px solid #5a2c2c; border-radius: 16px; padding: 20px; text-align: center;">
+                    <div style="font-size: 0.9rem; color: #d86c6c; margin-bottom: 8px;">⚠️ 연체 중인 인원</div>
+                    <div id="statOverdue" style="font-size: 2.2rem; font-weight: 700; color: #f0a0a0;">0</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 14px; margin-bottom: 16px;">
+                <button id="logoutAdmin" class="btn-primary" style="flex: 1;">사용자 모드로 돌아가기</button>
+                <button id="viewOverdue" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #ff5c5c, #e53e3e);">연체자 목록 보기</button>
+            </div>
+
+            <!-- 데이터 백업 섹션 -->
+            <div style="display: flex; gap: 14px; margin-bottom: 16px;">
+                <button id="exportBackupBtn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #2ecc71, #27ae60);">💾 백업 내보내기</button>
+                <button id="importBackupBtn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #3498db, #2980b9);">📂 백업 불러오기</button>
+            </div>
+
+            <div>
+                <!-- 물품 재고 현황 및 새 물품 추가 -->
+                <h3 style="margin-top: 0; color: #a0f0a0; font-size: 1.3rem;">📦 물품 재고 현황</h3>
+                <div id="adminStockTable" class="admin-data-table"></div>
+
+                <h3 style="margin-top: 24px; color: #a0f0a0; font-size: 1.3rem;">➕ 새 물품 추가</h3>
+                <div style="margin-top: 16px; padding: 24px 16px; background: #11131c; border-radius: 20px; border: 1px solid #2a3044;">
+                    <div class="field">
+                        <label for="newItemName">물품명</label>
+                        <input id="newItemName" type="text" placeholder="예: 우산" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                    </div>
+                    <div class="field">
+                        <label for="newItemType">구분</label>
+                        <select id="newItemType" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none;">
+                            <option value="대여">대여</option>
+                            <option value="소모품">소모품</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="newItemStock">초기 재고</label>
+                        <input id="newItemStock" type="number" min="0" placeholder="0" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                    </div>
+                    <div class="field">
+                        <label for="newItemNotice">주의사항</label>
+                        <input id="newItemNotice" type="text" placeholder="예: 비 오는 날 사용 후 충분히 말려서 반납" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                    </div>
+                    <button id="addItemBtn" class="btn-primary" style="margin-top: 12px;">물품 추가</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 관리자 모드 현재 대여 기록 (왼쪽 고정) -->
+        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+            <h3 style="margin: 0 0 16px; color: #ffc485; font-size: 1.3rem; flex-shrink: 0;">📝 현재 대여 기록</h3>
+            <div id="adminBorrowedTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
+        </div>
+
+        <section id="step-overdue" class="hidden">
+            <div class="step-title">연체자 목록</div>
+            <button id="backToAdmin" class="secondary" style="padding: 20px 36px; font-size: 1.3rem; border-radius: 30px;">관리자 모드로 돌아가기</button>
+
+            <h3 style="margin-top: 24px; color: #ff8f8f; font-size: 1.3rem;">⚠️ 연체된 대여 기록</h3>
+            <div id="overdueTable" class="admin-data-table" style="font-size: 0.9rem;"></div>
+        </section>
+
+        <section id="step-changelog" class="hidden">
+            <div class="step-title">변경 로그</div>
+            <button id="backFromChangelog" class="btn-primary">관리자 모드로 돌아가기</button>
+
+            <h3 style="margin-top: 24px; color: #9aa9ff; font-size: 1.3rem;">📋 최근 변경 로그</h3>
+            <div id="changeLogView" class="admin-data-table" style="max-height: 500px; overflow-y: auto;"></div>
+        </section>
+
+        <!-- 로그인 기록 팝업 (변경 로그 화면 왼쪽) -->
+        <div id="loginLogPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+            <h3 style="margin: 0 0 16px; color: #6cb4d8; font-size: 1.3rem; flex-shrink: 0;">👤 로그인 기록</h3>
+            <div id="loginLogTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
+        </div>
+
+        <section id="step-user">
+            <form id="user-form" novalidate>
+                <div class="field">
+                    <label for="name">이름</label>
+                    <input id="name" name="name" type="text" autocomplete="name" required autofocus>
+                    <div id="nameError" class="error" aria-live="polite"></div>
+                </div>
+                <div class="field">
+                    <label for="studentId">학번 (10자리 숫자)</label>
+                    <input id="studentId" name="studentId" type="tel" inputmode="numeric" maxlength="10" required>
+                    <div id="studentIdError" class="error" aria-live="polite"></div>
+                </div>
+                <div class="field">
+                    <label for="phone">전화번호 ('-' 없이 11자리)</label>
+                    <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="11" required>
+                    <div id="phoneError" class="error" aria-live="polite"></div>
+                </div>
+                <button class="btn-primary" type="submit">다음 단계</button>
+            </form>
+        </section>
+
+        <section id="step-items" class="hidden" style="overflow: visible; max-height: 100vh;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; position: relative; margin-top: 0; padding-top: 20px;">
+                <div class="actions" style="margin: 0; flex-direction: row; position: absolute; top: 0; right: 120px; gap: 12px;">
+                    <button id="finish" class="btn-primary">완료</button>
+                    <button id="editInfo" class="secondary">취소</button>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; height: calc(100vh - 200px);">
+                <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; margin-right: 200px; flex-wrap: wrap;">
+                    <button id="filterAll" class="filter-btn active" data-filter="all" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #617dff; background: #617dff; color: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 600;">전체</button>
+                    <button id="filterBorrow" class="filter-btn" data-filter="borrow" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 0.85rem; font-weight: 600;">대여 가능만</button>
+                    <button id="filterConsume" class="filter-btn" data-filter="consume" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 0.85rem; font-weight: 600;">소모품만</button>
+                </div>
+                <div id="itemGrid" class="item-grid" style="flex: 1; max-height: none; overflow-y: auto; margin-top: 20px;"></div>
+                <div id="selectionResult" class="result hidden" style="position: relative; z-index: 100;"></div>
+            </div>
+        </section>
+
+        <!-- STEP2 실시간 처리 기록 (왼쪽 하단 고정) -->
+        <div id="logBoard" class="log-board hidden" style="position: fixed; left: 20px; bottom: 20px; width: 350px; height: 300px; max-width: none; z-index: 1100;">
+            <h3>실시간 처리 기록</h3>
+            <ul id="logList">
+                <li>아직 기록이 없습니다.</li>
+            </ul>
+        </div>
+
+        <div id="cctvPopup" class="cctv-modal hidden" aria-live="polite">
+            <div id="cctvCard" class="cctv-card">
+                <span class="icon">⚠</span>
+                <div>
+                    <div class="title">CCTV 상시 작동 중</div>
+                    <div class="desc">
+                        부정 사용 및 미반납 시 영상 기록을 근거로 제재됩니다.<br>
+                        시설물 파손·훼손 시 변상 책임이 발생합니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 커스텀 확인 대화상자 -->
+        <div id="confirmModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+            <div style="background: #1c1f28; border-radius: 24px; padding: 36px; max-width: 480px; width: 90%; border: 1px solid #2c3242; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6); animation: modalIn 0.2s ease-out;">
+                <div id="confirmIcon" style="text-align: center; font-size: 4rem; margin-bottom: 16px;"></div>
+                <div id="confirmTitle" style="text-align: center; font-size: 1.4rem; font-weight: 700; color: #f4f4f8; margin-bottom: 8px;"></div>
+                <div id="confirmStock" style="text-align: center; font-size: 1rem; color: #9aa9ff; margin-bottom: 20px;"></div>
+                <div id="confirmMessage" style="font-size: 1rem; color: #b5c0d0; line-height: 1.6; white-space: pre-line; margin-bottom: 24px; padding: 16px; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border-left: 3px solid #ffd876;"></div>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="confirmCancel" style="padding: 14px 32px; border-radius: 14px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.2s;">취소</button>
+                    <button id="confirmOk" style="padding: 14px 32px; border-radius: 14px; border: none; background: linear-gradient(135deg, #617dff, #4e5fe5); color: #fff; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.2s;">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP2 사용자 정보 팝업 (왼쪽 상단) -->
+        <div id="userInfoPopup" class="user-info-popup hidden" style="top: 20px; left: 20px;">
+            <div id="userInfoCard" class="user-info-card"></div>
+        </div>
+
+        <!-- STEP2 CCTV 팝업 (왼쪽 중간, 기본 위치 설정) -->
+        <div id="cctvPopup2" class="cctv-modal hidden" aria-live="polite" style="left: 50px; top: 280px;">
+            <div id="cctvCard2" class="cctv-card">
+                <span class="icon">⚠</span>
+                <div>
+                    <div class="title">CCTV 상시 작동 중</div>
+                    <div class="desc">
+                        부정 사용 및 미반납 시 영상 기록을 근거로 제재됩니다.<br>
+                        시설물 파손·훼손 시 변상 책임이 발생합니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript 파일 분리 -->
+    <script src="js/script.js"></script>
+</body>
+</html>
