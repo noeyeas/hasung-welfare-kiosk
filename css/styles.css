@@ -91,8 +91,8 @@ body::before {
     transform: translateY(-50%) scale(0.95);
 }
 .brand-logo img {
-    width: 500px;
-    height: 500px;
+    width: 200px;
+    height: 200px;
     object-fit: contain;
     filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.4));
     animation: float 6s ease-in-out infinite;

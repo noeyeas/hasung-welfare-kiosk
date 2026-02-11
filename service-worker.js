@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hasung-kiosk-v6';
+const CACHE_NAME = 'hasung-kiosk-v7';
 const urlsToCache = [
   './',
   './index.html',
@@ -85,7 +85,7 @@ self.addEventListener('fetch', (event) => {
             }
             // 캐시에도 없으면 오프라인 페이지 반환
             if (event.request.destination === 'document') {
-              return caches.match('/index.html');
+              return caches.match('./index.html');
             }
           });
       })

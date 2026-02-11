@@ -2,57 +2,57 @@
   "name": "하성 복지물품 키오스크",
   "short_name": "하성 키오스크",
   "description": "인공지능융합대학 하성 복지물품 대여 및 관리 키오스크",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/hasung-welfare-kiosk/",
+  "scope": "/hasung-welfare-kiosk/",
   "display": "standalone",
   "background_color": "#12141a",
   "theme_color": "#617dff",
   "orientation": "landscape",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "/hasung-welfare-kiosk/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -66,8 +66,8 @@
       "name": "관리자 모드",
       "short_name": "관리자",
       "description": "관리자 모드로 바로 이동",
-      "url": "/?mode=admin",
-      "icons": [{ "src": "logo.png", "sizes": "96x96" }]
+      "url": "/hasung-welfare-kiosk/?mode=admin",
+      "icons": [{ "src": "/hasung-welfare-kiosk/logo.png", "sizes": "96x96" }]
     }
   ]
 }
