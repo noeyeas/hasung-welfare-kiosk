@@ -138,7 +138,16 @@
                     <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="11" required>
                     <div id="phoneError" class="error" aria-live="polite"></div>
                 </div>
-                <button class="btn-primary" type="submit">다음 단계</button>
+                <div class="consent-field">
+                    <label class="consent-label" id="consentLabel">
+                        <input type="checkbox" id="cameraConsent" class="consent-checkbox">
+                        <span class="consent-text">
+                            개인정보 수집에 동의합니다
+                            <span class="consent-desc">(물품 관리 목적으로 이용 장면이 촬영됩니다)</span>
+                        </span>
+                    </label>
+                </div>
+                <button class="btn-primary" type="submit" id="submitBtn" disabled>다음 단계</button>
             </form>
         </section>
 
@@ -198,6 +207,13 @@
         <!-- STEP2 사용자 정보 팝업 (왼쪽 상단) -->
         <div id="userInfoPopup" class="user-info-popup hidden" style="top: 20px; left: 20px;">
             <div id="userInfoCard" class="user-info-card"></div>
+            <!-- 카메라 미리보기 -->
+            <div id="cameraContainer" class="hidden" style="margin-top: 14px; border-radius: 12px; overflow: hidden; position: relative;">
+                <video id="cameraPreview" autoplay playsinline muted style="width: 100%; display: none; border-radius: 12px; transform: scaleX(-1);"></video>
+                <div id="recIndicator" class="hidden" style="position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 6px; background: rgba(255,0,0,0.8); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; animation: pulse 1s infinite;">
+                    <span style="width: 8px; height: 8px; background: #fff; border-radius: 50%; display: inline-block;"></span> REC
+                </div>
+            </div>
         </div>
 
         <!-- STEP2 CCTV 팝업 (왼쪽 중간, 기본 위치 설정) -->

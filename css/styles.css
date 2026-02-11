@@ -532,6 +532,53 @@ input:focus {
     font-size: 1.05rem;
     color: #ffe8b8;
 }
+/* 개인정보 동의 체크박스 */
+.consent-field {
+    margin-top: 4px;
+}
+.consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 16px;
+    border-radius: 14px;
+    background: rgba(97, 125, 255, 0.06);
+    border: 1px solid #2c3242;
+    transition: all 0.2s ease;
+}
+.consent-label:hover {
+    border-color: rgba(97, 125, 255, 0.4);
+}
+.consent-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    accent-color: #617dff;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.consent-text {
+    color: #e0e4ff;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+.consent-desc {
+    display: block;
+    color: #8890a8;
+    font-size: 0.88rem;
+    margin-top: 2px;
+}
+.btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 /* 사용자 정보 팝업 */
 .user-info-popup {
     position: fixed;
