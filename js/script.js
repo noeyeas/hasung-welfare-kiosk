@@ -14,8 +14,6 @@
         const stepAdmin = document.getElementById("step-admin");
         const stepOverdue = document.getElementById("step-overdue");
         const stepChangelog = document.getElementById("step-changelog");
-        const mainTitle = document.getElementById("mainTitle");
-        const mainDescription = document.getElementById("mainDescription");
         const adminStockTable = document.getElementById("adminStockTable");
         const adminBorrowedTable = document.getElementById("adminBorrowedTable");
         const adminBorrowedPopup = document.getElementById("adminBorrowedPopup");
@@ -745,8 +743,8 @@
 
             if (step === "items") {
                 stepItems.classList.remove("hidden");
-                if (mainTitle) mainTitle.style.display = 'none';
-                if (mainDescription) mainDescription.style.display = 'none';
+
+
                 if (logBoard) logBoard.classList.add("hidden");
                 if (brandLogo) brandLogo.classList.remove("hidden");
                 if (userInfoPopup) {
@@ -761,8 +759,8 @@
             } else if (step === "admin") { // 관리자 모드일 경우
                 stepAdmin.classList.remove("hidden");
                 if (adminBorrowedPopup) adminBorrowedPopup.classList.remove("hidden");
-                if (mainTitle) mainTitle.style.display = 'block';
-                if (mainDescription) mainDescription.style.display = 'none';
+
+
                 // 관리자 모드일 때 현재 대여 기록 공간 확보
                 const kiosk = document.querySelector('.kiosk');
                 if (kiosk) {
@@ -772,15 +770,15 @@
                 renderAdminData(); // 관리자 모드 진입 시 데이터 렌더링
             } else if (step === "overdue") { // 연체자 화면일 경우
                 stepOverdue.classList.remove("hidden");
-                if (mainTitle) mainTitle.style.display = 'block';
-                if (mainDescription) mainDescription.style.display = 'none';
+
+
                 renderOverdueData(); // 연체자 화면 진입 시 데이터 렌더링
             } else if (step === "changelog") { // 변경 로그 화면일 경우
                 stepChangelog.classList.remove("hidden");
                 const loginLogPopup = document.getElementById("loginLogPopup");
                 if (loginLogPopup) loginLogPopup.classList.remove("hidden");
-                if (mainTitle) mainTitle.style.display = 'block';
-                if (mainDescription) mainDescription.style.display = 'none';
+
+
                 // 변경 로그 화면에서도 레이아웃 조정
                 const kiosk = document.querySelector('.kiosk');
                 if (kiosk) {
@@ -792,8 +790,8 @@
             } else { // 기본값 (user)
                 stepUser.classList.remove("hidden");
                 // STEP 1에서는 제목과 부제목 숨김 (로고가 브랜드 역할)
-                if (mainTitle) mainTitle.style.display = 'none';
-                if (mainDescription) mainDescription.style.display = 'none';
+
+
                 if (brandLogo) brandLogo.classList.remove("hidden");
                 // 기본 모드일 때 레이아웃 원복
                 const kiosk = document.querySelector('.kiosk');
@@ -1768,18 +1766,6 @@
         // 사용자 활동 감지
         ['click', 'touchstart', 'mousemove', 'keydown'].forEach(event => {
             document.addEventListener(event, resetAutoLogout, { passive: true });
-        });
-
-        mainTitle.addEventListener("dblclick", async () => {
-            const password = prompt("관리자 비밀번호를 입력하세요:");
-            if (password === null) return; // 취소 시
-
-            const isValid = await verifyAdminPassword(password);
-            if (isValid) {
-                showStep("admin");
-            } else {
-                alert("비밀번호가 틀렸습니다.");
-            }
         });
 
         // 로고 더블클릭으로 관리자 모드 진입
