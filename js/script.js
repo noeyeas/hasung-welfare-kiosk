@@ -25,7 +25,6 @@
         const viewOverdueBtn = document.getElementById("viewOverdue");
         const backToAdminBtn = document.getElementById("backToAdmin");
         const backFromChangelogBtn = document.getElementById("backFromChangelog");
-        const cctvPopup = document.getElementById("cctvPopup");
         const confirmModal = document.getElementById("confirmModal");
         const confirmMessage = document.getElementById("confirmMessage");
         const confirmIcon = document.getElementById("confirmIcon");
@@ -726,8 +725,6 @@
 
         const userInfoPopup = document.getElementById("userInfoPopup");
         const userInfoCard = document.getElementById("userInfoCard");
-        const cctvPopup2 = document.getElementById("cctvPopup2");
-        const cctvCard2 = document.getElementById("cctvCard2");
         const logBoard = document.getElementById("logBoard");
         const brandLogo = document.getElementById("brandLogo");
 
@@ -738,9 +735,7 @@
             stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
             stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
             stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
-            cctvPopup.classList.add("hidden");
             if (userInfoPopup) userInfoPopup.classList.add("hidden");
-            if (cctvPopup2) cctvPopup2.classList.add("hidden");
             if (logBoard) logBoard.classList.add("hidden");
             if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
             if (brandLogo) brandLogo.classList.add("hidden");
@@ -757,10 +752,6 @@
                     userInfoPopup.classList.remove("hidden");
                     userInfoPopup.style.top = '20px';
                     userInfoPopup.style.left = '20px';
-                }
-                // CCTV 팝업은 기본 위치 사용 (HTML에서 설정된 top: 280px)
-                if (cctvPopup2) {
-                    cctvPopup2.classList.remove("hidden");
                 }
                 // 자동 로그아웃 타이머 시작
                 if (typeof resetAutoLogout === 'function') {
@@ -799,7 +790,6 @@
                 renderLoginLog(); // 로그인 기록 렌더링
             } else { // 기본값 (user)
                 stepUser.classList.remove("hidden");
-                cctvPopup.classList.remove("hidden");
                 // STEP 1에서는 제목과 부제목 숨김 (로고가 브랜드 역할)
                 if (mainTitle) mainTitle.style.display = 'none';
                 if (mainDescription) mainDescription.style.display = 'none';
@@ -2112,10 +2102,7 @@
         }
 
         // 모든 팝업에 드래그 기능 적용
-        const cctvCard = document.getElementById('cctvCard');
-        makeDraggable(cctvCard);
         makeDraggable(userInfoCard);
-        makeDraggable(cctvCard2);
 
         // Service Worker 등록 (PWA 지원)
         if ('serviceWorker' in navigator) {
