@@ -40,9 +40,9 @@
                 if (typeof options === 'string') {
                     options = { message: options };
                 }
-                
-                const { icon, title, stock, message } = options;
-                
+
+                const { icon, title, stock, message, autoClose } = options;
+
                 if (confirmIcon) confirmIcon.textContent = icon || '📦';
                 if (confirmTitle) confirmTitle.textContent = title || '';
                 if (confirmStock) {
@@ -54,34 +54,35 @@
                     }
                 }
                 if (confirmMessage) confirmMessage.textContent = message || '';
-                
+
+                // 버튼 영역 표시/숨기기
+                const btnArea = confirmOk?.parentElement;
+                if (btnArea) btnArea.style.display = autoClose ? 'none' : 'flex';
+
                 if (confirmModal) {
                     confirmModal.classList.remove("hidden");
                     confirmModal.style.display = "flex";
                 }
-                
-                const handleOk = () => {
+
+                const closeModal = (result) => {
                     if (confirmModal) {
                         confirmModal.classList.add("hidden");
                         confirmModal.style.display = "none";
                     }
                     if (confirmOk) confirmOk.removeEventListener("click", handleOk);
                     if (confirmCancel) confirmCancel.removeEventListener("click", handleCancel);
-                    resolve(true);
+                    resolve(result);
                 };
-                
-                const handleCancel = () => {
-                    if (confirmModal) {
-                        confirmModal.classList.add("hidden");
-                        confirmModal.style.display = "none";
-                    }
-                    if (confirmOk) confirmOk.removeEventListener("click", handleOk);
-                    if (confirmCancel) confirmCancel.removeEventListener("click", handleCancel);
-                    resolve(false);
-                };
-                
-                if (confirmOk) confirmOk.addEventListener("click", handleOk);
-                if (confirmCancel) confirmCancel.addEventListener("click", handleCancel);
+
+                const handleOk = () => closeModal(true);
+                const handleCancel = () => closeModal(false);
+
+                if (autoClose) {
+                    setTimeout(() => closeModal(true), autoClose);
+                } else {
+                    if (confirmOk) confirmOk.addEventListener("click", handleOk);
+                    if (confirmCancel) confirmCancel.addEventListener("click", handleCancel);
+                }
             });
         };
 
@@ -1592,15 +1593,13 @@
                     noticeMsg = `⚠️ 주의사항: ${item.notice}`;
                 }
 
-                const confirmed = await showConfirm({
+                await showConfirm({
                     icon: item.icon || '📦',
                     title: `${item.name} 대여`,
                     stock: item.stock,
-                    message: noticeMsg || '대여 후 기한 내 반납해주세요.'
+                    message: noticeMsg || '대여 후 기한 내 반납해주세요.',
+                    autoClose: 3000
                 });
-                if (!confirmed) {
-                    return;
-                }
                 
                 const dueInfo = currentDueInfo ?? getDueInfo();
                 borrowedRecords.push({
