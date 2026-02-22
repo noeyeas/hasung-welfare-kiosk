@@ -92,8 +92,6 @@
         const DB_NAME = 'HasungKioskDB';
         const DB_VERSION = 2;
         let db = null;
-        let cameraStream = null;
-        let cameraConsent = false;
 
         // DB 초기화
         const initDB = () => {
@@ -224,94 +222,6 @@
         };
 
         // ========================================
-        // 카메라 녹화 기능
-        // ========================================
-        const startCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: 640, height: 480 },
-                    audio: false
-                });
-                cameraStream = stream;
-                const videoEl = document.getElementById('cameraPreview');
-                if (videoEl) {
-                    videoEl.srcObject = stream;
-                    videoEl.style.display = 'block';
-                }
-                const cameraContainer = document.getElementById('cameraContainer');
-                if (cameraContainer) cameraContainer.classList.remove('hidden');
-            } catch (e) {
-                console.error('카메라 접근 실패:', e);
-            }
-        };
-
-        const stopCamera = () => {
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-            }
-            const videoEl = document.getElementById('cameraPreview');
-            if (videoEl) {
-                videoEl.srcObject = null;
-                videoEl.style.display = 'none';
-            }
-            const cameraContainer = document.getElementById('cameraContainer');
-            if (cameraContainer) cameraContainer.classList.add('hidden');
-        };
-
-        const recordVideo = (durationMs = 3000) => {
-            return new Promise((resolve) => {
-                if (!cameraStream || !cameraConsent) { resolve(null); return; }
-
-                const chunks = [];
-                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-                    ? 'video/webm;codecs=vp9'
-                    : MediaRecorder.isTypeSupported('video/webm')
-                        ? 'video/webm'
-                        : 'video/mp4';
-
-                const recorder = new MediaRecorder(cameraStream, { mimeType });
-                const recIndicator = document.getElementById('recIndicator');
-
-                recorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
-
-                recorder.onstop = () => {
-                    if (recIndicator) recIndicator.classList.add('hidden');
-                    resolve(new Blob(chunks, { type: mimeType }));
-                };
-
-                recorder.onerror = () => {
-                    if (recIndicator) recIndicator.classList.add('hidden');
-                    resolve(null);
-                };
-
-                if (recIndicator) recIndicator.classList.remove('hidden');
-                recorder.start();
-                setTimeout(() => {
-                    if (recorder.state === 'recording') recorder.stop();
-                }, durationMs);
-            });
-        };
-
-        const saveCameraRecord = async (action) => {
-            if (!cameraConsent || !currentUser) return;
-            const blob = await recordVideo(3000);
-            if (!blob) return;
-            try {
-                await addToStore('cameraRecords', {
-                    studentId: currentUser.studentId,
-                    name: currentUser.name,
-                    action,
-                    videoBlob: blob,
-                    timestamp: new Date().toISOString()
-                });
-            } catch (e) {
-                console.error('촬영 기록 저장 실패:', e);
-            }
-        };
-
         // localStorage에서 IndexedDB로 마이그레이션
         const migrateFromLocalStorage = async () => {
             try {
@@ -900,13 +810,6 @@
                     kiosk.style.marginLeft = '';
                     kiosk.style.width = '';
                 }
-                // 카메라 끄기 및 동의 초기화
-                stopCamera();
-                cameraConsent = false;
-                const _consent = document.getElementById('cameraConsent');
-                const _submit = document.getElementById('submitBtn');
-                if (_consent) _consent.checked = false;
-                if (_submit) _submit.disabled = true;
             }
         };
 
@@ -1578,16 +1481,6 @@
                 .join("");
         };
 
-        // 개인정보 동의 체크박스
-        const consentCheckbox = document.getElementById('cameraConsent');
-        const submitBtn = document.getElementById('submitBtn');
-        if (consentCheckbox && submitBtn) {
-            consentCheckbox.addEventListener('change', () => {
-                submitBtn.disabled = !consentCheckbox.checked;
-                cameraConsent = consentCheckbox.checked;
-            });
-        }
-
         form.addEventListener("submit", (event) => {
             event.preventDefault();
             selectionResult.classList.add("hidden");
@@ -1661,11 +1554,6 @@
             }
 
             showStep("items");
-
-            // 카메라 동의 시 카메라 시작
-            if (cameraConsent) {
-                startCamera();
-            }
         });
 
         // Debounce 기능
@@ -1749,7 +1637,7 @@
                     message: `반납 예정일 ${dueLabel}`,
                     time: formatTime(new Date())
                 });
-                saveCameraRecord(`대여: ${item.name}`);
+
                 return;
             }
 
@@ -1776,7 +1664,7 @@
                     message: "정상 반납",
                     time: formatTime(new Date())
                 });
-                saveCameraRecord(`반납: ${item.name}`);
+
                 return;
             }
 
@@ -1796,7 +1684,7 @@
                     message: "소모품은 반납 불필요",
                     time: formatTime(new Date())
                 });
-                saveCameraRecord(`수령: ${item.name}`);
+
             }
         });
 

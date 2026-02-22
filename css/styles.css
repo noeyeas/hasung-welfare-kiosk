@@ -532,51 +532,33 @@ input:focus {
     font-size: 1.05rem;
     color: #ffe8b8;
 }
-/* 개인정보 동의 체크박스 */
-.consent-field {
-    margin-top: 4px;
+/* 하단 보안 경고 마퀴 */
+.security-marquee {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(18, 20, 26, 0.92);
+    border-top: 1px solid rgba(97, 125, 255, 0.2);
+    overflow: hidden;
+    z-index: 9999;
+    padding: 10px 0;
 }
-.consent-label {
+.security-marquee-inner {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    cursor: pointer;
-    padding: 16px;
-    border-radius: 14px;
-    background: rgba(97, 125, 255, 0.06);
-    border: 1px solid #2c3242;
-    transition: all 0.2s ease;
+    white-space: nowrap;
+    animation: marquee-scroll 20s linear infinite;
 }
-.consent-label:hover {
-    border-color: rgba(97, 125, 255, 0.4);
+.security-marquee-inner span {
+    color: #ff6b6b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 0 60px;
 }
-.consent-checkbox {
-    width: 20px;
-    height: 20px;
-    margin-top: 2px;
-    accent-color: #617dff;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-.consent-text {
-    color: #e0e4ff;
-    font-size: 1rem;
-    line-height: 1.5;
-}
-.consent-desc {
-    display: block;
-    color: #8890a8;
-    font-size: 0.88rem;
-    margin-top: 2px;
-}
-.btn-primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+@keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
 }
 
 /* 사용자 정보 팝업 */
