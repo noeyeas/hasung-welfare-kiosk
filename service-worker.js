@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hasung-kiosk-v7';
+const CACHE_NAME = 'hasung-kiosk-v8';
 const urlsToCache = [
   './',
   './index.html',
