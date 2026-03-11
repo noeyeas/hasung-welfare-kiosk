@@ -693,11 +693,11 @@ input:focus {
         display: none;
     }
     .kiosk {
-        width: calc(100vw - 190px);
+        width: calc(100vw - 170px);
         max-width: none;
         height: calc(100vh - 20px);
         max-height: calc(100vh - 20px);
-        margin-right: 10px;
+        margin-right: 5px;
         border-radius: 20px;
         padding: 24px 20px 48px;
     }
