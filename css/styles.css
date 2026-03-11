@@ -673,14 +673,14 @@ input:focus {
         flex-direction: column;
         padding: 10px;
         gap: 12px;
-        width: 160px;
+        width: 200px;
         box-sizing: border-box;
         z-index: 100;
         align-items: center;
     }
     .brand-logo img {
-        width: 120px;
-        height: 120px;
+        width: 180px;
+        height: 180px;
     }
     .brand-logo .brand-text {
         font-size: 0.75rem;
