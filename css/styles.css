@@ -662,8 +662,8 @@ input:focus {
         font-size: 18px;
     }
     body {
-        padding: 0;
-        justify-content: center;
+        padding: 10px;
+        justify-content: flex-end;
     }
     .brand-logo {
         position: fixed;
