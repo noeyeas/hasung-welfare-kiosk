@@ -666,26 +666,27 @@ input:focus {
         justify-content: center;
     }
     .brand-logo {
-        position: relative;
-        left: auto;
-        top: auto;
+        position: fixed;
+        left: 20px;
+        top: 20px;
         transform: none;
         flex-direction: row;
         padding: 16px 20px;
-        gap: 14px;
-        width: 100%;
+        gap: 16px;
+        width: auto;
         box-sizing: border-box;
         z-index: 100;
+        align-items: center;
     }
     .brand-logo img {
-        width: 60px;
-        height: 60px;
+        width: 100px;
+        height: 100px;
     }
     .brand-logo .brand-text {
-        font-size: 0.8rem;
+        font-size: 1rem;
     }
     .brand-logo .brand-subtitle {
-        font-size: 0.65rem;
+        font-size: 0.8rem;
     }
     body::before {
         display: none;
