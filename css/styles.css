@@ -693,7 +693,7 @@ input:focus {
         display: none;
     }
     .kiosk {
-        width: calc(100vw - 170px);
+        width: 66vw;
         max-width: none;
         height: calc(100vh - 20px);
         max-height: calc(100vh - 20px);
