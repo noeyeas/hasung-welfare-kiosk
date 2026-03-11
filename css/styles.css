@@ -547,7 +547,7 @@ input:focus {
 .security-marquee-inner {
     display: flex;
     white-space: nowrap;
-    animation: marquee-scroll 20s linear infinite;
+    animation: marquee-scroll 10s linear infinite;
 }
 .security-marquee-inner span {
     color: #ff6b6b;
@@ -679,14 +679,14 @@ input:focus {
         align-items: center;
     }
     .brand-logo img {
-        width: 180px;
-        height: 180px;
+        width: 250px;
+        height: 250px;
     }
     .brand-logo .brand-text {
-        font-size: 1.1rem;
+        font-size: 1.3rem;
     }
     .brand-logo .brand-subtitle {
-        font-size: 0.85rem;
+        font-size: 1rem;
     }
     body::before {
         display: none;
