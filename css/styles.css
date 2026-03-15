@@ -667,7 +667,7 @@ input:focus {
     }
     .brand-logo {
         position: fixed;
-        left: 30px;
+        left: 60px;
         top: 50%;
         transform: translateY(-50%);
         flex-direction: column;
