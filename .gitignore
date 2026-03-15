@@ -1,0 +1,5 @@
+node_modules/
+js/script.original.js
+js/script.es5.js
+package.json
+package-lock.json
