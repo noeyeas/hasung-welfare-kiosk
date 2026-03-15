@@ -695,16 +695,20 @@ input:focus {
     .kiosk {
         width: 66vw;
         max-width: none;
-        height: calc(100vh - 20px);
-        max-height: calc(100vh - 20px);
+        min-height: calc(100vh - 20px);
+        height: auto;
+        max-height: none;
         margin-right: 5px;
         border-radius: 20px;
         padding: 24px 20px 48px;
+        overflow-y: auto;
     }
     html, body {
-        overflow: hidden !important;
-        height: 100% !important;
-        max-height: 100vh !important;
+        overflow: auto !important;
+        height: auto !important;
+        max-height: none !important;
+        position: static !important;
+        min-height: 100vh;
     }
     .cctv-modal {
         left: 10px !important;
