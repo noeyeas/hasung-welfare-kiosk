@@ -1784,7 +1784,7 @@ adminStockTable.addEventListener('touchmove', function (e) {
 // 초기 로드 시 STEP1로 설정하며 CCTV 모달 표시
 var initApp = /*#__PURE__*/function () {
   var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-    var migrated, data, _t22;
+    var migrated, data, savedItems, savedBorrowed, savedChangeLog, savedLoginLog, _t22;
     return _regenerator().w(function (_context15) {
       while (1) switch (_context15.p = _context15.n) {
         case 0:
@@ -1829,6 +1829,21 @@ var initApp = /*#__PURE__*/function () {
           _context15.p = 6;
           _t22 = _context15.v;
           console.error('Initialization error:', _t22);
+          // IndexedDB 실패 시 localStorage 폴백
+          try {
+            savedItems = localStorage.getItem('kiosk_items');
+            if (savedItems) items = JSON.parse(savedItems);
+            savedBorrowed = localStorage.getItem('kiosk_borrowed');
+            if (savedBorrowed) borrowedRecords = JSON.parse(savedBorrowed);
+            savedChangeLog = localStorage.getItem('kiosk_changeLog');
+            if (savedChangeLog) changeLog = JSON.parse(savedChangeLog);
+            savedLoginLog = localStorage.getItem('kiosk_loginLog');
+            if (savedLoginLog) loginLog = JSON.parse(savedLoginLog);
+            console.log('Fallback: Data loaded from localStorage');
+            renderItems();
+          } catch (e2) {
+            console.error('localStorage fallback error:', e2);
+          }
         case 7:
           showStep("user");
         case 8:
