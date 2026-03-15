@@ -1,5 +1,48 @@
 "use strict";
 
+// Polyfills for Chrome 50 / Samsung Internet 4.0
+if (!String.prototype.padStart) {
+  String.prototype.padStart = function(targetLength, padString) {
+    targetLength = targetLength >> 0;
+    padString = String(typeof padString !== 'undefined' ? padString : ' ');
+    if (this.length >= targetLength) return String(this);
+    targetLength = targetLength - this.length;
+    if (targetLength > padString.length) padString += padString.repeat(Math.ceil(targetLength / padString.length));
+    return padString.slice(0, targetLength) + String(this);
+  };
+}
+if (!String.prototype.repeat) {
+  String.prototype.repeat = function(count) {
+    var str = '' + this;
+    count = +count;
+    var result = '';
+    while (count > 0) {
+      if (count % 2 === 1) result += str;
+      if (count > 1) str += str;
+      count >>= 1;
+    }
+    return result;
+  };
+}
+if (!Array.prototype.includes) {
+  Array.prototype.includes = function(val) { return this.indexOf(val) !== -1; };
+}
+if (!String.prototype.includes) {
+  String.prototype.includes = function(val) { return this.indexOf(val) !== -1; };
+}
+if (!Array.prototype.find) {
+  Array.prototype.find = function(fn) {
+    for (var i = 0; i < this.length; i++) { if (fn(this[i], i, this)) return this[i]; }
+    return undefined;
+  };
+}
+if (!Array.prototype.findIndex) {
+  Array.prototype.findIndex = function(fn) {
+    for (var i = 0; i < this.length; i++) { if (fn(this[i], i, this)) return i; }
+    return -1;
+  };
+}
+
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
@@ -727,7 +770,7 @@ var validateStudentId = function validateStudentId(studentId) {
 
   // 2. 학과 코드 검증 (5~7번째 자리)
   var departmentCode = studentId.substring(4, 7);
-  if (!validDepartmentCodes.includes(departmentCode)) {
+  if (validDepartmentCodes.indexOf(departmentCode) === -1) {
     return {
       valid: false,
       message: "인공지능융합대학 학생만 이용 가능합니다."
@@ -780,7 +823,7 @@ var validatePhone = function validatePhone(phone) {
   // 010, 011, 016, 017, 018, 019로 시작하는지 확인
   var prefix = phone.substring(0, 3);
   var validPrefixes = ['010', '011', '016', '017', '018', '019'];
-  if (!validPrefixes.includes(prefix)) {
+  if (validPrefixes.indexOf(prefix) === -1) {
     return {
       valid: false,
       message: "유효하지 않은 전화번호입니다."
@@ -1622,7 +1665,7 @@ var renderItems = function renderItems() {
   // 검색 필터링
   if (searchQuery) {
     filteredItems = filteredItems.filter(function (item) {
-      return item.name.toLowerCase().includes(searchQuery) || item.type.toLowerCase().includes(searchQuery) || item.notice && item.notice.toLowerCase().includes(searchQuery);
+      return item.name.toLowerCase().indexOf(searchQuery) !== -1 || item.type.toLowerCase().indexOf(searchQuery) !== -1 || item.notice && item.notice.toLowerCase().indexOf(searchQuery) !== -1;
     });
   }
   if (filteredItems.length === 0) {
