@@ -1381,7 +1381,7 @@
         }, { passive: true });
 
         // 초기 로드 시 STEP1로 설정하며 CCTV 모달 표시
-        window.addEventListener("DOMContentLoaded", async () => {
+        const initApp = async () => {
             try {
                 // IndexedDB 초기화
                 await initDB();
@@ -1411,7 +1411,12 @@
             }
 
             showStep("user");
-        });
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener("DOMContentLoaded", initApp);
+        } else {
+            initApp();
+        }
 
         const weekdayNames = ["일", "월", "화", "수", "목", "금", "토"];
 
