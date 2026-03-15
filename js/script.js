@@ -1,47 +1,99 @@
-"use strict";
-
-// Polyfills for Chrome 50 / Samsung Internet 4.0
+// ES5 Polyfills for Chrome 50 / Samsung Internet 4.0
 if (!String.prototype.padStart) {
   String.prototype.padStart = function(targetLength, padString) {
     targetLength = targetLength >> 0;
     padString = String(typeof padString !== 'undefined' ? padString : ' ');
     if (this.length >= targetLength) return String(this);
     targetLength = targetLength - this.length;
-    if (targetLength > padString.length) padString += padString.repeat(Math.ceil(targetLength / padString.length));
+    if (targetLength > padString.length) {
+      padString += padString.repeat(Math.ceil(targetLength / padString.length));
+    }
     return padString.slice(0, targetLength) + String(this);
   };
 }
 if (!String.prototype.repeat) {
   String.prototype.repeat = function(count) {
+    if (this == null) throw new TypeError('can\'t convert ' + this + ' to object');
     var str = '' + this;
     count = +count;
+    if (count < 0 || count === Infinity) throw new RangeError('Invalid count value');
+    count = Math.floor(count);
+    if (str.length === 0 || count === 0) return '';
     var result = '';
     while (count > 0) {
-      if (count % 2 === 1) result += str;
-      if (count > 1) str += str;
+      if (count & 1) result += str;
       count >>= 1;
+      if (count) str += str;
     }
     return result;
   };
 }
 if (!Array.prototype.includes) {
-  Array.prototype.includes = function(val) { return this.indexOf(val) !== -1; };
+  Array.prototype.includes = function(searchElement, fromIndex) {
+    if (this == null) throw new TypeError('"this" is null or not defined');
+    var o = Object(this);
+    var len = o.length >>> 0;
+    if (len === 0) return false;
+    var n = fromIndex | 0;
+    var k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
+    while (k < len) {
+      if (o[k] === searchElement) return true;
+      k++;
+    }
+    return false;
+  };
 }
 if (!String.prototype.includes) {
-  String.prototype.includes = function(val) { return this.indexOf(val) !== -1; };
+  String.prototype.includes = function(search, start) {
+    if (typeof start !== 'number') start = 0;
+    if (start + search.length > this.length) return false;
+    return this.indexOf(search, start) !== -1;
+  };
 }
 if (!Array.prototype.find) {
-  Array.prototype.find = function(fn) {
-    for (var i = 0; i < this.length; i++) { if (fn(this[i], i, this)) return this[i]; }
+  Array.prototype.find = function(predicate) {
+    if (this == null) throw new TypeError('"this" is null or not defined');
+    var o = Object(this);
+    var len = o.length >>> 0;
+    if (typeof predicate !== 'function') throw new TypeError('predicate must be a function');
+    var thisArg = arguments[1];
+    for (var k = 0; k < len; k++) {
+      var kValue = o[k];
+      if (predicate.call(thisArg, kValue, k, o)) return kValue;
+    }
     return undefined;
   };
 }
 if (!Array.prototype.findIndex) {
-  Array.prototype.findIndex = function(fn) {
-    for (var i = 0; i < this.length; i++) { if (fn(this[i], i, this)) return i; }
+  Array.prototype.findIndex = function(predicate) {
+    if (this == null) throw new TypeError('"this" is null or not defined');
+    var o = Object(this);
+    var len = o.length >>> 0;
+    if (typeof predicate !== 'function') throw new TypeError('predicate must be a function');
+    var thisArg = arguments[1];
+    for (var k = 0; k < len; k++) {
+      if (predicate.call(thisArg, o[k], k, o)) return k;
+    }
     return -1;
   };
 }
+if (!Array.from) {
+  Array.from = function(arrayLike, mapFn, thisArg) {
+    var arr = [];
+    var len = arrayLike.length >>> 0;
+    for (var i = 0; i < len; i++) {
+      arr.push(mapFn ? mapFn.call(thisArg, arrayLike[i], i) : arrayLike[i]);
+    }
+    return arr;
+  };
+}
+if (!Object.setPrototypeOf) {
+  Object.setPrototypeOf = function(obj, proto) {
+    obj.__proto__ = proto;
+    return obj;
+  };
+}
+"use strict";
 
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
@@ -88,6 +140,96 @@ var confirmTitle = document.getElementById("confirmTitle");
 var confirmStock = document.getElementById("confirmStock");
 var confirmOk = document.getElementById("confirmOk");
 var confirmCancel = document.getElementById("confirmCancel");
+
+// ========================================
+// Google Sheets API 설정
+// ========================================
+var API_URL = 'https://script.google.com/macros/s/AKfycbyXx677O7yLWcUhIAUDfhJGmW0UqSgx8KUAIsKA9wCRqPOAfdaL7ToPovkKGECW4gJ5ig/exec';
+
+// API GET 요청 헬퍼
+function apiGet(action, callback) {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_URL + '?action=' + encodeURIComponent(action), true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            callback(null, data);
+          } catch (e) {
+            callback(e, null);
+          }
+        } else {
+          callback(new Error('HTTP ' + xhr.status), null);
+        }
+      }
+    };
+    xhr.onerror = function () {
+      callback(new Error('Network error'), null);
+    };
+    xhr.timeout = 10000;
+    xhr.ontimeout = function () {
+      callback(new Error('Timeout'), null);
+    };
+    xhr.send();
+  } catch (e) {
+    callback(e, null);
+  }
+}
+
+// API POST 요청 헬퍼 (fire-and-forget)
+function apiPost(data, callback) {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        if (callback) {
+          if (xhr.status === 200) {
+            try {
+              var resp = JSON.parse(xhr.responseText);
+              callback(null, resp);
+            } catch (e) {
+              callback(e, null);
+            }
+          } else {
+            callback(new Error('HTTP ' + xhr.status), null);
+          }
+        }
+      }
+    };
+    xhr.onerror = function () {
+      if (callback) callback(new Error('Network error'), null);
+    };
+    xhr.timeout = 15000;
+    xhr.ontimeout = function () {
+      if (callback) callback(new Error('Timeout'), null);
+    };
+    xhr.send(JSON.stringify(data));
+  } catch (e) {
+    if (callback) callback(e, null);
+  }
+}
+
+// localStorage 헬퍼 (캐시 및 폴백용)
+function saveToLocalCache(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('localStorage save error:', e);
+  }
+}
+function loadFromLocalCache(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('localStorage load error:', e);
+  }
+  return null;
+}
 
 // 커스텀 확인 대화상자 함수
 var showConfirm = function showConfirm(options) {
@@ -150,254 +292,106 @@ var showConfirm = function showConfirm(options) {
 };
 
 // ========================================
-// IndexedDB 헬퍼 함수
+// 데이터 저장소 헬퍼 함수 (localStorage 기반 + API 동기화)
 // ========================================
-var DB_NAME = 'HasungKioskDB';
-var DB_VERSION = 2;
-var db = null;
 
-// DB 초기화
+// DB 초기화 (no-op, API 기반이므로 즉시 resolve)
 var initDB = function initDB() {
-  return new Promise(function (resolve, reject) {
-    var request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = function () {
-      return reject(request.error);
-    };
-    request.onsuccess = function () {
-      db = request.result;
-      resolve(db);
-    };
-    request.onupgradeneeded = function (event) {
-      var db = event.target.result;
-
-      // Object Stores (테이블) 생성
-      if (!db.objectStoreNames.contains('items')) {
-        db.createObjectStore('items', {
-          keyPath: 'name'
-        });
-      }
-      if (!db.objectStoreNames.contains('borrowed')) {
-        var borrowedStore = db.createObjectStore('borrowed', {
-          keyPath: 'id',
-          autoIncrement: true
-        });
-        borrowedStore.createIndex('studentId', 'studentId', {
-          unique: false
-        });
-        borrowedStore.createIndex('itemName', 'itemName', {
-          unique: false
-        });
-      }
-      if (!db.objectStoreNames.contains('changeLog')) {
-        var changeLogStore = db.createObjectStore('changeLog', {
-          keyPath: 'id',
-          autoIncrement: true
-        });
-        changeLogStore.createIndex('time', 'time', {
-          unique: false
-        });
-      }
-      if (!db.objectStoreNames.contains('loginLog')) {
-        var loginLogStore = db.createObjectStore('loginLog', {
-          keyPath: 'id',
-          autoIncrement: true
-        });
-        loginLogStore.createIndex('time', 'time', {
-          unique: false
-        });
-      }
-      if (!db.objectStoreNames.contains('cameraRecords')) {
-        var cameraStore = db.createObjectStore('cameraRecords', {
-          keyPath: 'id',
-          autoIncrement: true
-        });
-        cameraStore.createIndex('studentId', 'studentId', {
-          unique: false
-        });
-        cameraStore.createIndex('timestamp', 'timestamp', {
-          unique: false
-        });
-      }
-    };
+  return new Promise(function (resolve) {
+    resolve();
   });
 };
 
-// 데이터 저장 (단일)
+// 데이터 저장 (단일) - localStorage 캐시
 var saveToStore = function saveToStore(storeName, data) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readwrite');
-    var store = transaction.objectStore(storeName);
-    var request = store.put(data);
-    request.onsuccess = function () {
-      return resolve(request.result);
-    };
-    request.onerror = function () {
-      return reject(request.error);
-    };
+  return new Promise(function (resolve) {
+    var all = loadFromLocalCache('kiosk_' + storeName) || [];
+    var keyField = storeName === 'items' ? 'name' : 'id';
+    var found = false;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i][keyField] === data[keyField]) {
+        all[i] = data;
+        found = true;
+        break;
+      }
+    }
+    if (!found) all.push(data);
+    saveToLocalCache('kiosk_' + storeName, all);
+    resolve();
   });
 };
 
-// 데이터 저장 (여러 개)
+// 데이터 저장 (여러 개) - localStorage 캐시
 var saveAllToStore = function saveAllToStore(storeName, dataArray) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readwrite');
-    var store = transaction.objectStore(storeName);
-
-    // 기존 데이터 모두 삭제
-    var clearRequest = store.clear();
-    clearRequest.onsuccess = function () {
-      // 새 데이터 추가
-      var promises = dataArray.map(function (data) {
-        return new Promise(function (res, rej) {
-          var request = store.put(data);
-          request.onsuccess = function () {
-            return res();
-          };
-          request.onerror = function () {
-            return rej(request.error);
-          };
-        });
-      });
-      Promise.all(promises).then(function () {
-        return resolve();
-      })["catch"](reject);
-    };
-    clearRequest.onerror = function () {
-      return reject(clearRequest.error);
-    };
+  return new Promise(function (resolve) {
+    saveToLocalCache('kiosk_' + storeName, dataArray);
+    resolve();
   });
 };
 
-// 데이터 가져오기 (전체)
+// 데이터 가져오기 (전체) - localStorage 캐시
 var getAllFromStore = function getAllFromStore(storeName) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readonly');
-    var store = transaction.objectStore(storeName);
-    var request = store.getAll();
-    request.onsuccess = function () {
-      return resolve(request.result);
-    };
-    request.onerror = function () {
-      return reject(request.error);
-    };
+  return new Promise(function (resolve) {
+    var data = loadFromLocalCache('kiosk_' + storeName);
+    resolve(data || []);
   });
 };
 
 // 데이터 가져오기 (특정 키)
 var getFromStore = function getFromStore(storeName, key) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readonly');
-    var store = transaction.objectStore(storeName);
-    var request = store.get(key);
-    request.onsuccess = function () {
-      return resolve(request.result);
-    };
-    request.onerror = function () {
-      return reject(request.error);
-    };
+  return new Promise(function (resolve) {
+    var all = loadFromLocalCache('kiosk_' + storeName) || [];
+    var keyField = storeName === 'items' ? 'name' : 'id';
+    var found = null;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i][keyField] === key) {
+        found = all[i];
+        break;
+      }
+    }
+    resolve(found);
   });
 };
 
 // 데이터 삭제
 var deleteFromStore = function deleteFromStore(storeName, key) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readwrite');
-    var store = transaction.objectStore(storeName);
-    var request = store["delete"](key);
-    request.onsuccess = function () {
-      return resolve();
-    };
-    request.onerror = function () {
-      return reject(request.error);
-    };
+  return new Promise(function (resolve) {
+    var all = loadFromLocalCache('kiosk_' + storeName) || [];
+    var keyField = storeName === 'items' ? 'name' : 'id';
+    var filtered = [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i][keyField] !== key) {
+        filtered.push(all[i]);
+      }
+    }
+    saveToLocalCache('kiosk_' + storeName, filtered);
+    resolve();
   });
 };
 
 // 데이터 추가 (append)
 var addToStore = function addToStore(storeName, data) {
-  return new Promise(function (resolve, reject) {
-    var transaction = db.transaction([storeName], 'readwrite');
-    var store = transaction.objectStore(storeName);
-    var request = store.add(data);
-    request.onsuccess = function () {
-      return resolve(request.result);
-    };
-    request.onerror = function () {
-      return reject(request.error);
-    };
+  return new Promise(function (resolve) {
+    var all = loadFromLocalCache('kiosk_' + storeName) || [];
+    all.push(data);
+    saveToLocalCache('kiosk_' + storeName, all);
+    resolve(all.length);
   });
 };
 
 // ========================================
-// localStorage에서 IndexedDB로 마이그레이션
+// 마이그레이션 (no-op, API 기반)
 var migrateFromLocalStorage = /*#__PURE__*/function () {
   var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-    var savedItems, _items, savedBorrowed, borrowed, savedChangeLog, _changeLog, savedLoginLog, _loginLog, _t;
     return _regenerator().w(function (_context) {
-      while (1) switch (_context.p = _context.n) {
+      while (1) switch (_context.n) {
         case 0:
-          _context.p = 0;
-          // items 마이그레이션
-          savedItems = localStorage.getItem('kiosk_items');
-          if (!savedItems) {
-            _context.n = 2;
-            break;
-          }
-          _items = JSON.parse(savedItems);
-          _context.n = 1;
-          return saveAllToStore('items', _items);
+          // 더 이상 IndexedDB 마이그레이션 불필요
+          console.log('Using Google Sheets API backend');
         case 1:
-          console.log('Items migrated to IndexedDB');
-        case 2:
-          // borrowed 마이그레이션
-          savedBorrowed = localStorage.getItem('kiosk_borrowed');
-          if (!savedBorrowed) {
-            _context.n = 4;
-            break;
-          }
-          borrowed = JSON.parse(savedBorrowed);
-          _context.n = 3;
-          return saveAllToStore('borrowed', borrowed);
-        case 3:
-          console.log('Borrowed records migrated to IndexedDB');
-        case 4:
-          // changeLog 마이그레이션
-          savedChangeLog = localStorage.getItem('kiosk_change_log');
-          if (!savedChangeLog) {
-            _context.n = 6;
-            break;
-          }
-          _changeLog = JSON.parse(savedChangeLog);
-          _context.n = 5;
-          return saveAllToStore('changeLog', _changeLog);
-        case 5:
-          console.log('Change log migrated to IndexedDB');
-        case 6:
-          // loginLog 마이그레이션
-          savedLoginLog = localStorage.getItem('kiosk_login_log');
-          if (!savedLoginLog) {
-            _context.n = 8;
-            break;
-          }
-          _loginLog = JSON.parse(savedLoginLog);
-          _context.n = 7;
-          return saveAllToStore('loginLog', _loginLog);
-        case 7:
-          console.log('Login log migrated to IndexedDB');
-        case 8:
-          // 마이그레이션 완료 표시
-          localStorage.setItem('migrated_to_indexeddb', 'true');
-          console.log('Migration completed successfully');
-          _context.n = 10;
-          break;
-        case 9:
-          _context.p = 9;
-          _t = _context.v;
-          console.error('Migration error:', _t);
-        case 10:
           return _context.a(2);
       }
-    }, _callee, null, [[0, 9]]);
+    }, _callee);
   }));
   return function migrateFromLocalStorage() {
     return _ref.apply(this, arguments);
@@ -411,38 +405,38 @@ var migrateFromLocalStorage = /*#__PURE__*/function () {
 // 백업 데이터 내보내기 (JSON 파일 다운로드)
 var exportBackup = /*#__PURE__*/function () {
   var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-    var backupData, jsonString, blob, url, date, dateStr, timeStr, filename, a, _t2, _t3, _t4, _t5, _t6, _t7, _t8;
+    var backupData, jsonString, blob, url, date, dateStr, timeStr, filename, a, _t, _t2, _t3, _t4, _t5, _t6, _t7;
     return _regenerator().w(function (_context2) {
       while (1) switch (_context2.p = _context2.n) {
         case 0:
           _context2.p = 0;
-          _t2 = new Date().toISOString();
+          _t = new Date().toISOString();
           _context2.n = 1;
           return getAllFromStore('items');
         case 1:
-          _t3 = _context2.v;
+          _t2 = _context2.v;
           _context2.n = 2;
           return getAllFromStore('borrowed');
         case 2:
-          _t4 = _context2.v;
+          _t3 = _context2.v;
           _context2.n = 3;
           return getAllFromStore('changeLog');
         case 3:
-          _t5 = _context2.v;
+          _t4 = _context2.v;
           _context2.n = 4;
           return getAllFromStore('loginLog');
         case 4:
-          _t6 = _context2.v;
-          _t7 = {
-            items: _t3,
-            borrowed: _t4,
-            changeLog: _t5,
-            loginLog: _t6
+          _t5 = _context2.v;
+          _t6 = {
+            items: _t2,
+            borrowed: _t3,
+            changeLog: _t4,
+            loginLog: _t5
           };
           backupData = {
             version: '1.0',
-            exportDate: _t2,
-            data: _t7
+            exportDate: _t,
+            data: _t6
           };
           jsonString = JSON.stringify(backupData, null, 2);
           blob = new Blob([jsonString], {
@@ -465,8 +459,8 @@ var exportBackup = /*#__PURE__*/function () {
           return _context2.a(2, true);
         case 5:
           _context2.p = 5;
-          _t8 = _context2.v;
-          console.error('Backup export error:', _t8);
+          _t7 = _context2.v;
+          console.error('Backup export error:', _t7);
           alert('❌ 백업 내보내기에 실패했습니다.');
           return _context2.a(2, false);
       }
@@ -487,7 +481,7 @@ var importBackup = /*#__PURE__*/function () {
             var reader = new FileReader();
             reader.onload = /*#__PURE__*/function () {
               var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(e) {
-                var backupData, currentData, _items2, _borrowedRecords, newData, _t9, _t0, _t1, _t10, _t11, _t12;
+                var backupData, currentData, _items, _borrowedRecords, newData, _t8, _t9, _t0, _t1, _t10, _t11;
                 return _regenerator().w(function (_context3) {
                   while (1) switch (_context3.p = _context3.n) {
                     case 0:
@@ -502,24 +496,24 @@ var importBackup = /*#__PURE__*/function () {
                       _context3.n = 2;
                       return getAllFromStore('items');
                     case 2:
-                      _t9 = _context3.v;
+                      _t8 = _context3.v;
                       _context3.n = 3;
                       return getAllFromStore('borrowed');
                     case 3:
-                      _t0 = _context3.v;
+                      _t9 = _context3.v;
                       _context3.n = 4;
                       return getAllFromStore('changeLog');
                     case 4:
-                      _t1 = _context3.v;
+                      _t0 = _context3.v;
                       _context3.n = 5;
                       return getAllFromStore('loginLog');
                     case 5:
-                      _t10 = _context3.v;
+                      _t1 = _context3.v;
                       currentData = {
-                        items: _t9,
-                        borrowed: _t0,
-                        changeLog: _t1,
-                        loginLog: _t10
+                        items: _t8,
+                        borrowed: _t9,
+                        changeLog: _t0,
+                        loginLog: _t1
                       };
                       _context3.p = 6;
                       if (!(backupData.data.items && backupData.data.items.length > 0)) {
@@ -555,7 +549,7 @@ var importBackup = /*#__PURE__*/function () {
                     case 11:
                       newData = _context3.v;
                       items.length = 0;
-                      (_items2 = items).push.apply(_items2, _toConsumableArray(newData.items));
+                      (_items = items).push.apply(_items, _toConsumableArray(newData.items));
                       borrowedRecords.length = 0;
                       (_borrowedRecords = borrowedRecords).push.apply(_borrowedRecords, _toConsumableArray(newData.borrowedRecords));
                       _context3.n = 12;
@@ -575,9 +569,9 @@ var importBackup = /*#__PURE__*/function () {
                       break;
                     case 14:
                       _context3.p = 14;
-                      _t11 = _context3.v;
+                      _t10 = _context3.v;
                       // 복원 실패 시 롤백
-                      console.error('Restore failed, rolling back:', _t11);
+                      console.error('Restore failed, rolling back:', _t10);
                       _context3.n = 15;
                       return saveAllToStore('items', currentData.items);
                     case 15:
@@ -596,8 +590,8 @@ var importBackup = /*#__PURE__*/function () {
                       break;
                     case 20:
                       _context3.p = 20;
-                      _t12 = _context3.v;
-                      reject(_t12);
+                      _t11 = _context3.v;
+                      reject(_t11);
                     case 21:
                       return _context3.a(2);
                   }
@@ -632,7 +626,7 @@ var selectAndImportBackup = /*#__PURE__*/function () {
             input.accept = '.json';
             input.onchange = /*#__PURE__*/function () {
               var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(e) {
-                var file, result, _t13;
+                var file, result, _t12;
                 return _regenerator().w(function (_context5) {
                   while (1) switch (_context5.p = _context5.n) {
                     case 0:
@@ -657,10 +651,10 @@ var selectAndImportBackup = /*#__PURE__*/function () {
                       break;
                     case 3:
                       _context5.p = 3;
-                      _t13 = _context5.v;
+                      _t12 = _context5.v;
                       resolve({
                         success: false,
-                        message: "\u274C ".concat(_t13.message)
+                        message: "\u274C ".concat(_t12.message)
                       });
                     case 4:
                       return _context5.a(2);
@@ -841,23 +835,20 @@ var currentDueInfo = null;
 // 변경 로그 불러오기
 var loadChangeLog = /*#__PURE__*/function () {
   var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
-    var logs, _t14;
+    var logs, _t13;
     return _regenerator().w(function (_context9) {
       while (1) switch (_context9.p = _context9.n) {
         case 0:
           _context9.p = 0;
-          _context9.n = 1;
-          return getAllFromStore('changeLog');
-        case 1:
-          logs = _context9.v;
+          logs = loadFromLocalCache('kiosk_changeLog');
           return _context9.a(2, logs || []);
-        case 2:
-          _context9.p = 2;
-          _t14 = _context9.v;
-          console.error('Failed to load change log:', _t14);
+        case 1:
+          _context9.p = 1;
+          _t13 = _context9.v;
+          console.error('Failed to load change log:', _t13);
           return _context9.a(2, []);
       }
-    }, _callee9, null, [[0, 2]]);
+    }, _callee9, null, [[0, 1]]);
   }));
   return function loadChangeLog() {
     return _ref9.apply(this, arguments);
@@ -866,27 +857,22 @@ var loadChangeLog = /*#__PURE__*/function () {
 
 // 변경 로그 저장
 var saveChangeLog = /*#__PURE__*/function () {
-  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(changeLog) {
-    var limitedLog, _t15;
+  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(changeLogData) {
+    var limitedLog;
     return _regenerator().w(function (_context0) {
-      while (1) switch (_context0.p = _context0.n) {
+      while (1) switch (_context0.n) {
         case 0:
-          _context0.p = 0;
-          // 최근 50개만 저장
-          limitedLog = changeLog.slice(-50);
-          _context0.n = 1;
-          return saveAllToStore('changeLog', limitedLog);
+          try {
+            // 최근 50개만 저장
+            limitedLog = changeLogData.slice(-50);
+            saveToLocalCache('kiosk_changeLog', limitedLog);
+          } catch (error) {
+            console.error('Failed to save change log:', error);
+          }
         case 1:
-          _context0.n = 3;
-          break;
-        case 2:
-          _context0.p = 2;
-          _t15 = _context0.v;
-          console.error('Failed to save change log:', _t15);
-        case 3:
           return _context0.a(2);
       }
-    }, _callee0, null, [[0, 2]]);
+    }, _callee0);
   }));
   return function saveChangeLog(_x6) {
     return _ref0.apply(this, arguments);
@@ -897,40 +883,35 @@ var changeLog = [];
 // 변경 로그 추가
 var addChangeLog = /*#__PURE__*/function () {
   var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(action, details) {
-    var logEntry, _t16;
+    var logEntry;
     return _regenerator().w(function (_context1) {
-      while (1) switch (_context1.p = _context1.n) {
+      while (1) switch (_context1.n) {
         case 0:
-          _context1.p = 0;
-          logEntry = {
-            time: new Date().toISOString(),
-            action: action,
-            details: details
-          };
-          _context1.n = 1;
-          return addToStore('changeLog', logEntry);
-        case 1:
-          _context1.n = 2;
-          return loadChangeLog();
-        case 2:
-          changeLog = _context1.v;
-          if (!(changeLog.length > 50)) {
-            _context1.n = 3;
-            break;
+          try {
+            logEntry = {
+              time: new Date().toISOString(),
+              action: action,
+              details: details
+            }; // 메모리 배열에 추가
+            changeLog.push(logEntry);
+            // 50개 제한 적용
+            if (changeLog.length > 50) {
+              changeLog = changeLog.slice(-50);
+            }
+            // localStorage 캐시
+            saveToLocalCache('kiosk_changeLog', changeLog);
+            // API에 전송 (fire-and-forget)
+            apiPost({
+              action: 'addChangeLog',
+              log: logEntry
+            });
+          } catch (error) {
+            console.error('Failed to add change log:', error);
           }
-          _context1.n = 3;
-          return saveChangeLog(changeLog);
-        case 3:
-          _context1.n = 5;
-          break;
-        case 4:
-          _context1.p = 4;
-          _t16 = _context1.v;
-          console.error('Failed to add change log:', _t16);
-        case 5:
+        case 1:
           return _context1.a(2);
       }
-    }, _callee1, null, [[0, 4]]);
+    }, _callee1);
   }));
   return function addChangeLog(_x7, _x8) {
     return _ref1.apply(this, arguments);
@@ -940,23 +921,20 @@ var addChangeLog = /*#__PURE__*/function () {
 // 로그인 기록 관리
 var loadLoginLog = /*#__PURE__*/function () {
   var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
-    var logs, _t17;
+    var logs, _t14;
     return _regenerator().w(function (_context10) {
       while (1) switch (_context10.p = _context10.n) {
         case 0:
           _context10.p = 0;
-          _context10.n = 1;
-          return getAllFromStore('loginLog');
-        case 1:
-          logs = _context10.v;
+          logs = loadFromLocalCache('kiosk_loginLog');
           return _context10.a(2, logs || []);
-        case 2:
-          _context10.p = 2;
-          _t17 = _context10.v;
-          console.error('Failed to load login log:', _t17);
+        case 1:
+          _context10.p = 1;
+          _t14 = _context10.v;
+          console.error('Failed to load login log:', _t14);
           return _context10.a(2, []);
       }
-    }, _callee10, null, [[0, 2]]);
+    }, _callee10, null, [[0, 1]]);
   }));
   return function loadLoginLog() {
     return _ref10.apply(this, arguments);
@@ -964,26 +942,21 @@ var loadLoginLog = /*#__PURE__*/function () {
 }();
 var saveLoginLog = /*#__PURE__*/function () {
   var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(log) {
-    var limitedLog, _t18;
+    var limitedLog;
     return _regenerator().w(function (_context11) {
-      while (1) switch (_context11.p = _context11.n) {
+      while (1) switch (_context11.n) {
         case 0:
-          _context11.p = 0;
-          // 최근 100개만 저장
-          limitedLog = log.slice(-100);
-          _context11.n = 1;
-          return saveAllToStore('loginLog', limitedLog);
+          try {
+            // 최근 100개만 저장
+            limitedLog = log.slice(-100);
+            saveToLocalCache('kiosk_loginLog', limitedLog);
+          } catch (error) {
+            console.error('Failed to save login log:', error);
+          }
         case 1:
-          _context11.n = 3;
-          break;
-        case 2:
-          _context11.p = 2;
-          _t18 = _context11.v;
-          console.error('Failed to save login log:', _t18);
-        case 3:
           return _context11.a(2);
       }
-    }, _callee11, null, [[0, 2]]);
+    }, _callee11);
   }));
   return function saveLoginLog(_x9) {
     return _ref11.apply(this, arguments);
@@ -992,290 +965,187 @@ var saveLoginLog = /*#__PURE__*/function () {
 var loginLog = [];
 var addLoginLog = /*#__PURE__*/function () {
   var _ref12 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(user) {
-    var logEntry, _t19;
+    var logEntry;
     return _regenerator().w(function (_context12) {
-      while (1) switch (_context12.p = _context12.n) {
+      while (1) switch (_context12.n) {
         case 0:
-          _context12.p = 0;
-          logEntry = {
-            time: new Date().toISOString(),
-            name: user.name,
-            studentId: user.studentId,
-            phone: user.phone
-          };
-          _context12.n = 1;
-          return addToStore('loginLog', logEntry);
-        case 1:
-          _context12.n = 2;
-          return loadLoginLog();
-        case 2:
-          loginLog = _context12.v;
-          if (!(loginLog.length > 100)) {
-            _context12.n = 3;
-            break;
+          try {
+            logEntry = {
+              time: new Date().toISOString(),
+              name: user.name,
+              studentId: user.studentId,
+              phone: user.phone
+            }; // 메모리 배열에 추가
+            loginLog.push(logEntry);
+            // 100개 제한 적용
+            if (loginLog.length > 100) {
+              loginLog = loginLog.slice(-100);
+            }
+            // localStorage 캐시
+            saveToLocalCache('kiosk_loginLog', loginLog);
+            // API에 전송 (fire-and-forget)
+            apiPost({
+              action: 'addLoginLog',
+              log: logEntry
+            });
+          } catch (error) {
+            console.error('Failed to add login log:', error);
           }
-          _context12.n = 3;
-          return saveLoginLog(loginLog);
-        case 3:
-          _context12.n = 5;
-          break;
-        case 4:
-          _context12.p = 4;
-          _t19 = _context12.v;
-          console.error('Failed to add login log:', _t19);
-        case 5:
+        case 1:
           return _context12.a(2);
       }
-    }, _callee12, null, [[0, 4]]);
+    }, _callee12);
   }));
   return function addLoginLog(_x0) {
     return _ref12.apply(this, arguments);
   };
 }();
 
-// IndexedDB에서 데이터 불러오기
-var loadData = /*#__PURE__*/function () {
-  var _ref13 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
-    var savedItems, savedBorrowed, defaultItems, now, overdueDate, overdueExample, _items3, _borrowedRecords2, newItems, updated, iconMap, hasOverdueExample, _t20;
-    return _regenerator().w(function (_context13) {
-      while (1) switch (_context13.p = _context13.n) {
-        case 0:
-          _context13.p = 0;
-          _context13.n = 1;
-          return getAllFromStore('items');
-        case 1:
-          savedItems = _context13.v;
-          _context13.n = 2;
-          return getAllFromStore('borrowed');
-        case 2:
-          savedBorrowed = _context13.v;
-          // 기본 물품 데이터
-          defaultItems = [{
-            name: "우산",
-            type: "대여",
-            stock: 7,
-            notice: "비 오는 날 사용 후 충분히 말려서 반납",
-            icon: "🌂"
-          }, {
-            name: "충전기",
-            type: "대여",
-            stock: 5,
-            notice: "케이블 손상 시 즉시 관리자에게 보고",
-            icon: "🔌"
-          }, {
-            name: "USB 허브",
-            type: "대여",
-            stock: 3,
-            notice: "USB 포트 무리하게 꽂지 않기",
-            icon: "🔗"
-          }, {
-            name: "USB 허브 C타입",
-            type: "대여",
-            stock: 3,
-            notice: "USB 포트 무리하게 꽂지 않기",
-            icon: "💻"
-          }, {
-            name: "농구공",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "🏀"
-          }, {
-            name: "풋살볼",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "⚽"
-          }, {
-            name: "피구공",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "🔴"
-          }, {
-            name: "공",
-            type: "대여",
-            stock: 4,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "⚽"
-          }, {
-            name: "담요",
-            type: "대여",
-            stock: 2,
-            notice: "음식물·화장품 묻지 않게 주의",
-            icon: "🛏️"
-          }, {
-            name: "핫팩",
-            type: "소모품",
-            stock: 20,
-            notice: "개봉 후 재활용 불가, 즉시 폐기",
-            icon: "🔥"
-          }, {
-            name: "마스크",
-            type: "소모품",
-            stock: 50,
-            notice: "1인 1개 제한",
-            icon: "😷"
-          }]; // 테스트용 연체자 예시 데이터 생성 (3일 전 날짜로 설정)
-          now = new Date();
-          overdueDate = new Date(now);
-          overdueDate.setDate(overdueDate.getDate() - 3);
-          overdueDate.setHours(18, 0, 0, 0);
-          overdueExample = {
-            studentId: "2020123456",
-            name: "홍길동",
-            phone: "01012345678",
-            itemName: "우산",
-            dueLabel: "".concat(overdueDate.getMonth() + 1, "/").concat(overdueDate.getDate(), "(").concat(["일", "월", "화", "수", "목", "금", "토"][overdueDate.getDay()], ") 18:00"),
-            dueDate: overdueDate.toISOString(),
-            borrowedAt: new Date(overdueDate.getTime() - 24 * 60 * 60 * 1000).toISOString() // 하루 전에 대여
-          };
-          if (!(savedItems && savedItems.length > 0)) {
-            _context13.n = 5;
-            break;
-          }
-          _items3 = savedItems;
-          _borrowedRecords2 = savedBorrowed || []; // 새 물품 목록 (기존 데이터에 없으면 추가)
-          newItems = [{
-            name: "USB 허브 C타입",
-            type: "대여",
-            stock: 3,
-            notice: "USB 포트 무리하게 꽂지 않기",
-            icon: "💻"
-          }, {
-            name: "농구공",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "🏀"
-          }, {
-            name: "풋살볼",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "⚽"
-          }, {
-            name: "피구공",
-            type: "대여",
-            stock: 2,
-            notice: "실내 사용 금지, 흙 묻지 않게 관리",
-            icon: "🔴"
-          }, {
-            name: "마스크",
-            type: "소모품",
-            stock: 50,
-            notice: "1인 1개 제한",
-            icon: "😷"
-          }];
-          updated = false;
-          newItems.forEach(function (newItem) {
-            if (!_items3.some(function (item) {
-              return item.name === newItem.name;
-            })) {
-              _items3.push(newItem);
-              updated = true;
-            }
-          });
+// Google Sheets API에서 데이터 불러오기 (localStorage 폴백)
+var loadData = function loadData() {
+  return new Promise(function (resolve) {
+    // 기본 물품 데이터
+    var defaultItems = [{
+      name: "우산",
+      type: "대여",
+      stock: 7,
+      notice: "비 오는 날 사용 후 충분히 말려서 반납",
+      icon: "🌂"
+    }, {
+      name: "충전기",
+      type: "대여",
+      stock: 5,
+      notice: "케이블 손상 시 즉시 관리자에게 보고",
+      icon: "🔌"
+    }, {
+      name: "USB 허브",
+      type: "대여",
+      stock: 3,
+      notice: "USB 포트 무리하게 꽂지 않기",
+      icon: "🔗"
+    }, {
+      name: "USB 허브 C타입",
+      type: "대여",
+      stock: 3,
+      notice: "USB 포트 무리하게 꽂지 않기",
+      icon: "💻"
+    }, {
+      name: "농구공",
+      type: "대여",
+      stock: 2,
+      notice: "실내 사용 금지, 흙 묻지 않게 관리",
+      icon: "🏀"
+    }, {
+      name: "풋살볼",
+      type: "대여",
+      stock: 2,
+      notice: "실내 사용 금지, 흙 묻지 않게 관리",
+      icon: "⚽"
+    }, {
+      name: "피구공",
+      type: "대여",
+      stock: 2,
+      notice: "실내 사용 금지, 흙 묻지 않게 관리",
+      icon: "🔴"
+    }, {
+      name: "공",
+      type: "대여",
+      stock: 4,
+      notice: "실내 사용 금지, 흙 묻지 않게 관리",
+      icon: "⚽"
+    }, {
+      name: "담요",
+      type: "대여",
+      stock: 2,
+      notice: "음식물·화장품 묻지 않게 주의",
+      icon: "🛏️"
+    }, {
+      name: "핫팩",
+      type: "소모품",
+      stock: 20,
+      notice: "개봉 후 재활용 불가, 즉시 폐기",
+      icon: "🔥"
+    }, {
+      name: "마스크",
+      type: "소모품",
+      stock: 50,
+      notice: "1인 1개 제한",
+      icon: "😷"
+    }];
 
-          // 물품 아이콘 추가 (기존 데이터 호환)
-          iconMap = {
-            "우산": "🌂",
-            "충전기": "🔌",
-            "USB 허브": "🔗",
-            "USB 허브 C타입": "💻",
-            "농구공": "🏀",
-            "풋살볼": "⚽",
-            "피구공": "🔴",
-            "공": "⚽",
-            "담요": "🛏️",
-            "핫팩": "🔥",
-            "마스크": "😷"
-          };
-          _items3.forEach(function (item) {
-            if (iconMap[item.name] && item.icon !== iconMap[item.name]) {
-              item.icon = iconMap[item.name];
-              updated = true;
-            }
+    // API에서 데이터 가져오기 시도
+    apiGet('getAll', function (err, response) {
+      if (!err && response && response.success && response.data) {
+        var apiData = response.data;
+        var loadedItems = apiData.items && apiData.items.length > 0 ? apiData.items : defaultItems;
+        var loadedBorrowed = apiData.borrowed || [];
+
+        // localStorage 캐시에 저장
+        saveToLocalCache('kiosk_items', loadedItems);
+        saveToLocalCache('kiosk_borrowed', loadedBorrowed);
+        if (apiData.changeLog) {
+          saveToLocalCache('kiosk_changeLog', apiData.changeLog);
+        }
+        if (apiData.loginLog) {
+          saveToLocalCache('kiosk_loginLog', apiData.loginLog);
+        }
+        console.log('Data loaded from Google Sheets API');
+        resolve({
+          items: loadedItems,
+          borrowedRecords: loadedBorrowed
+        });
+      } else {
+        // API 실패 시 localStorage 폴백
+        console.warn('API load failed, using localStorage fallback:', err);
+        var cachedItems = loadFromLocalCache('kiosk_items');
+        var cachedBorrowed = loadFromLocalCache('kiosk_borrowed');
+        if (cachedItems && cachedItems.length > 0) {
+          resolve({
+            items: cachedItems,
+            borrowedRecords: cachedBorrowed || []
           });
-          if (!updated) {
-            _context13.n = 3;
-            break;
-          }
-          _context13.n = 3;
-          return saveAllToStore('items', _items3);
-        case 3:
-          // 연체자 예시가 없으면 추가
-          hasOverdueExample = _borrowedRecords2.some(function (record) {
-            return record.studentId === overdueExample.studentId && record.itemName === overdueExample.itemName;
-          });
-          if (hasOverdueExample) {
-            _context13.n = 4;
-            break;
-          }
-          _borrowedRecords2.push(overdueExample);
-          _context13.n = 4;
-          return saveAllToStore('borrowed', _borrowedRecords2);
-        case 4:
-          return _context13.a(2, {
-            items: _items3,
-            borrowedRecords: _borrowedRecords2
-          });
-        case 5:
-          _context13.n = 6;
-          return saveAllToStore('items', defaultItems);
-        case 6:
-          _context13.n = 7;
-          return saveAllToStore('borrowed', [overdueExample]);
-        case 7:
-          return _context13.a(2, {
+        } else {
+          resolve({
             items: defaultItems,
-            borrowedRecords: [overdueExample]
-          });
-        case 8:
-          _context13.p = 8;
-          _t20 = _context13.v;
-          console.error('Failed to load data:', _t20);
-          return _context13.a(2, {
-            items: [],
             borrowedRecords: []
           });
+        }
       }
-    }, _callee13, null, [[0, 8]]);
-  }));
-  return function loadData() {
-    return _ref13.apply(this, arguments);
-  };
-}();
+    });
+  });
+};
 var items = [];
 var borrowedRecords = [];
 
-// 데이터 저장 함수
+// 데이터 저장 함수 (localStorage 캐시 + API 동기화)
 var saveData = /*#__PURE__*/function () {
-  var _ref14 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
-    var _t21;
-    return _regenerator().w(function (_context14) {
-      while (1) switch (_context14.p = _context14.n) {
+  var _ref13 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
+    return _regenerator().w(function (_context13) {
+      while (1) switch (_context13.n) {
         case 0:
-          _context14.p = 0;
-          _context14.n = 1;
-          return saveAllToStore('items', items);
+          try {
+            // localStorage 캐시 즉시 저장
+            saveToLocalCache('kiosk_items', items);
+            saveToLocalCache('kiosk_borrowed', borrowedRecords);
+            // API에 전체 데이터 동기화 (fire-and-forget)
+            apiPost({
+              action: 'saveItems',
+              data: items
+            });
+            apiPost({
+              action: 'saveBorrowed',
+              data: borrowedRecords
+            });
+          } catch (error) {
+            console.error('Failed to save data:', error);
+          }
         case 1:
-          _context14.n = 2;
-          return saveAllToStore('borrowed', borrowedRecords);
-        case 2:
-          _context14.n = 4;
-          break;
-        case 3:
-          _context14.p = 3;
-          _t21 = _context14.v;
-          console.error('Failed to save data:', _t21);
-        case 4:
-          return _context14.a(2);
+          return _context13.a(2);
       }
-    }, _callee14, null, [[0, 3]]);
+    }, _callee13);
   }));
   return function saveData() {
-    return _ref14.apply(this, arguments);
+    return _ref13.apply(this, arguments);
   };
 }();
 var userInfoPopup = document.getElementById("userInfoPopup");
@@ -1781,78 +1651,64 @@ adminStockTable.addEventListener('touchmove', function (e) {
   passive: true
 });
 
-// 초기 로드 시 STEP1로 설정하며 CCTV 모달 표시
+// 초기 로드 시 STEP1로 설정
 var initApp = /*#__PURE__*/function () {
-  var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-    var migrated, data, savedItems, savedBorrowed, savedChangeLog, savedLoginLog, _t22;
-    return _regenerator().w(function (_context15) {
-      while (1) switch (_context15.p = _context15.n) {
+  var _ref14 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
+    var data, savedItems, savedBorrowed, savedChangeLog, savedLoginLog, _t15;
+    return _regenerator().w(function (_context14) {
+      while (1) switch (_context14.p = _context14.n) {
         case 0:
-          _context15.p = 0;
-          _context15.n = 1;
-          return initDB();
-        case 1:
-          console.log('IndexedDB initialized');
-
-          // localStorage에서 마이그레이션 (처음 한 번만)
-          migrated = localStorage.getItem('migrated_to_indexeddb');
-          if (migrated) {
-            _context15.n = 2;
-            break;
-          }
-          _context15.n = 2;
-          return migrateFromLocalStorage();
-        case 2:
-          _context15.n = 3;
+          _context14.p = 0;
+          _context14.n = 1;
           return loadData();
-        case 3:
-          data = _context15.v;
+        case 1:
+          data = _context14.v;
           items = data.items;
           borrowedRecords = data.borrowedRecords;
 
-          // 로그 데이터 로드
-          _context15.n = 4;
+          // 로그 데이터 로드 (localStorage 캐시)
+          _context14.n = 2;
           return loadChangeLog();
-        case 4:
-          changeLog = _context15.v;
-          _context15.n = 5;
+        case 2:
+          changeLog = _context14.v;
+          _context14.n = 3;
           return loadLoginLog();
-        case 5:
-          loginLog = _context15.v;
-          console.log('Data loaded from IndexedDB');
+        case 3:
+          loginLog = _context14.v;
+          console.log('Data loaded successfully');
 
           // 데이터 로드 후 물품 목록 렌더링
           renderItems();
-          _context15.n = 7;
+          _context14.n = 5;
           break;
-        case 6:
-          _context15.p = 6;
-          _t22 = _context15.v;
-          console.error('Initialization error:', _t22);
-          // IndexedDB 실패 시 localStorage 폴백
+        case 4:
+          _context14.p = 4;
+          _t15 = _context14.v;
+          console.error('Initialization error:', _t15);
+          // 최종 폴백
           try {
-            savedItems = localStorage.getItem('kiosk_items');
-            if (savedItems) items = JSON.parse(savedItems);
-            savedBorrowed = localStorage.getItem('kiosk_borrowed');
-            if (savedBorrowed) borrowedRecords = JSON.parse(savedBorrowed);
-            savedChangeLog = localStorage.getItem('kiosk_changeLog');
-            if (savedChangeLog) changeLog = JSON.parse(savedChangeLog);
-            savedLoginLog = localStorage.getItem('kiosk_loginLog');
-            if (savedLoginLog) loginLog = JSON.parse(savedLoginLog);
+            savedItems = loadFromLocalCache('kiosk_items');
+            if (savedItems) items = savedItems;
+            savedBorrowed = loadFromLocalCache('kiosk_borrowed');
+            if (savedBorrowed) borrowedRecords = savedBorrowed;
+            savedChangeLog = loadFromLocalCache('kiosk_changeLog');
+            if (savedChangeLog) changeLog = savedChangeLog;
+            savedLoginLog = loadFromLocalCache('kiosk_loginLog');
+            if (savedLoginLog) loginLog = savedLoginLog;
             console.log('Fallback: Data loaded from localStorage');
             renderItems();
           } catch (e2) {
             console.error('localStorage fallback error:', e2);
           }
-        case 7:
+        case 5:
           showStep("user");
-        case 8:
-          return _context15.a(2);
+        case 6:
+          return _context14.a(2);
       }
-    }, _callee15, null, [[0, 6]]);
+    }, _callee14, null, [[0, 4]]);
   }));
   return function initApp() {
-    return _ref15.apply(this, arguments);
+    return _ref14.apply(this, arguments);
   };
 }();
 if (document.readyState === 'loading') {
@@ -1969,22 +1825,22 @@ var isProcessing = false;
 var debounceTime = 400; // 400ms
 
 itemGrid.addEventListener("click", /*#__PURE__*/function () {
-  var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(event) {
-    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, dueInfo, dueLabel, borrowedIndex;
-    return _regenerator().w(function (_context16) {
-      while (1) switch (_context16.n) {
+  var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(event) {
+    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
+    return _regenerator().w(function (_context15) {
+      while (1) switch (_context15.n) {
         case 0:
           if (!(event.target.tagName !== "BUTTON")) {
-            _context16.n = 1;
+            _context15.n = 1;
             break;
           }
-          return _context16.a(2);
+          return _context15.a(2);
         case 1:
           if (!isProcessing) {
-            _context16.n = 2;
+            _context15.n = 2;
             break;
           }
-          return _context16.a(2);
+          return _context15.a(2);
         case 2:
           isProcessing = true;
           setTimeout(function () {
@@ -1993,46 +1849,46 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           _event$target$dataset = event.target.dataset, action = _event$target$dataset.action, index = _event$target$dataset.index;
           item = items[Number(index)];
           if (currentUser) {
-            _context16.n = 3;
+            _context15.n = 3;
             break;
           }
           alert("먼저 학생 정보를 입력해주세요.");
-          return _context16.a(2);
+          return _context15.a(2);
         case 3:
           if (!((action === "borrow" || action === "consume") && item.stock <= 0)) {
-            _context16.n = 4;
+            _context15.n = 4;
             break;
           }
-          return _context16.a(2);
+          return _context15.a(2);
         case 4:
           if (!(action === "borrow")) {
-            _context16.n = 8;
+            _context15.n = 8;
             break;
           }
           if (!(item.stock <= 0)) {
-            _context16.n = 5;
+            _context15.n = 5;
             break;
           }
           showSelectionResult("\u26A0\uFE0F ".concat(item.name, " \uC7AC\uACE0\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4. \uB2E4\uB978 \uBB3C\uD488\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694."), false);
-          return _context16.a(2);
+          return _context15.a(2);
         case 5:
           // 중복 대여 방지: 이미 빌린 물품인지 확인
           alreadyBorrowed = borrowedRecords.some(function (record) {
             return record.studentId === currentUser.studentId && record.itemName === item.name;
           });
           if (!alreadyBorrowed) {
-            _context16.n = 6;
+            _context15.n = 6;
             break;
           }
           showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
-          return _context16.a(2);
+          return _context15.a(2);
         case 6:
           // 주의사항 메시지 구성
           noticeMsg = '';
           if (item.notice && item.notice.trim()) {
             noticeMsg = "\u26A0\uFE0F \uC8FC\uC758\uC0AC\uD56D: ".concat(item.notice);
           }
-          _context16.n = 7;
+          _context15.n = 7;
           return showConfirm({
             icon: item.icon || '📦',
             title: "".concat(item.name, " \uB300\uC5EC"),
@@ -2042,7 +1898,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           });
         case 7:
           dueInfo = currentDueInfo || getDueInfo();
-          borrowedRecords.push({
+          borrowRecord = {
             studentId: currentUser.studentId,
             name: currentUser.name,
             phone: currentUser.phone,
@@ -2050,10 +1906,21 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             dueLabel: dueInfo.label,
             dueDate: dueInfo.date.toISOString(),
             borrowedAt: new Date().toISOString()
-          });
+          };
+          borrowedRecords.push(borrowRecord);
           item.stock -= 1;
           dueLabel = (currentDueInfo || getDueInfo()).label;
           saveData(); // 데이터 저장
+          // API 개별 동기화 (fire-and-forget)
+          apiPost({
+            action: 'updateStock',
+            itemName: item.name,
+            stock: item.stock
+          });
+          apiPost({
+            action: 'addBorrowed',
+            record: borrowRecord
+          });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uB300\uC5EC \uC644\uB8CC!\n\uBC18\uB0A9 \uC608\uC815\uC77C\uC740 ").concat(dueLabel, "\uC785\uB2C8\uB2E4.\n\n\uAE30\uD55C \uCD08\uACFC \uC2DC 1\uC77C\uB2F9 2,000\uC6D0 \uBC8C\uAE08(\uC8FC\uB9D0 \uD3EC\uD568)\uC774 \uBD80\uACFC\uB429\uB2C8\uB2E4."), true);
           addLog({
@@ -2063,25 +1930,37 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             message: "\uBC18\uB0A9 \uC608\uC815\uC77C ".concat(dueLabel),
             time: formatTime(new Date())
           });
-          return _context16.a(2);
+          return _context15.a(2);
         case 8:
           if (!(action === "return")) {
-            _context16.n = 10;
+            _context15.n = 10;
             break;
           }
           borrowedIndex = borrowedRecords.findIndex(function (record) {
             return record.studentId === currentUser.studentId && record.itemName === item.name;
           });
           if (!(borrowedIndex === -1)) {
-            _context16.n = 9;
+            _context15.n = 9;
             break;
           }
           showSelectionResult("\u26A0\uFE0F ".concat(item.name, " \uB300\uC5EC \uC774\uB825\uC774 \uD655\uC778\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uC5D0\uAC8C \uBB38\uC758\uD574\uC8FC\uC138\uC694."), false);
-          return _context16.a(2);
+          return _context15.a(2);
         case 9:
+          removedRecord = borrowedRecords[borrowedIndex];
           borrowedRecords.splice(borrowedIndex, 1);
           item.stock += 1;
           saveData(); // 데이터 저장
+          // API 개별 동기화 (fire-and-forget)
+          apiPost({
+            action: 'updateStock',
+            itemName: item.name,
+            stock: item.stock
+          });
+          apiPost({
+            action: 'removeBorrowed',
+            studentId: removedRecord.studentId,
+            itemName: removedRecord.itemName
+          });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uBC18\uB0A9 \uCC98\uB9AC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C1\uD0DC \uC774\uC0C1 \uC2DC \uAD00\uB9AC\uC790\uC5D0\uAC8C \uBCF4\uACE0\uD574\uC8FC\uC138\uC694."), true);
           addLog({
@@ -2091,21 +1970,27 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             message: "정상 반납",
             time: formatTime(new Date())
           });
-          return _context16.a(2);
+          return _context15.a(2);
         case 10:
           if (!(action === "consume")) {
-            _context16.n = 12;
+            _context15.n = 12;
             break;
           }
           if (!(item.stock <= 0)) {
-            _context16.n = 11;
+            _context15.n = 11;
             break;
           }
           showSelectionResult("\u26A0\uFE0F ".concat(item.name, " \uC7AC\uACE0\uAC00 \uBAA8\uB450 \uC18C\uC9C4\uB418\uC5C8\uC2B5\uB2C8\uB2E4."), false);
-          return _context16.a(2);
+          return _context15.a(2);
         case 11:
           item.stock -= 1;
           saveData(); // 데이터 저장
+          // API 개별 동기화 (fire-and-forget)
+          apiPost({
+            action: 'updateStock',
+            itemName: item.name,
+            stock: item.stock
+          });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uC218\uB839 \uC644\uB8CC! \uC18C\uBAA8\uD488\uC740 \uBC18\uB0A9\uD558\uC9C0 \uC54A\uC544\uB3C4 \uB429\uB2C8\uB2E4."), true);
           addLog({
@@ -2116,25 +2001,25 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             time: formatTime(new Date())
           });
         case 12:
-          return _context16.a(2);
+          return _context15.a(2);
       }
-    }, _callee16);
+    }, _callee15);
   }));
   return function (_x1) {
-    return _ref16.apply(this, arguments);
+    return _ref15.apply(this, arguments);
   };
 }());
-editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
+editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16() {
   var userBorrowed, warningMsg, confirmed;
-  return _regenerator().w(function (_context17) {
-    while (1) switch (_context17.n) {
+  return _regenerator().w(function (_context16) {
+    while (1) switch (_context16.n) {
       case 0:
         // 현재 사용자의 대여 기록 확인
         userBorrowed = borrowedRecords.filter(function (r) {
           return r.studentId === (currentUser && currentUser.studentId);
         });
         if (!(userBorrowed.length > 0)) {
-          _context17.n = 2;
+          _context16.n = 2;
           break;
         }
         // 대여 기록이 있으면 경고
@@ -2143,19 +2028,19 @@ editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__
           warningMsg += "\u2022 ".concat(record.itemName, " (\uBC18\uB0A9: ").concat(record.dueLabel.replace(' 18:00', ''), ")\n");
         });
         warningMsg += "\n\uB300\uC5EC \uAE30\uB85D\uC740 \uC720\uC9C0\uB429\uB2C8\uB2E4.\n\uCCAB \uD654\uBA74\uC73C\uB85C \uB3CC\uC544\uAC00\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?";
-        _context17.n = 1;
+        _context16.n = 1;
         return showConfirm({
           icon: '⚠️',
           title: '대여 중인 물품 있음',
           message: warningMsg
         });
       case 1:
-        confirmed = _context17.v;
+        confirmed = _context16.v;
         if (confirmed) {
-          _context17.n = 2;
+          _context16.n = 2;
           break;
         }
-        return _context17.a(2);
+        return _context16.a(2);
       case 2:
         form.reset();
         studentIdError.textContent = "";
@@ -2164,14 +2049,14 @@ editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__
         currentDueInfo = null;
         showStep("user");
       case 3:
-        return _context17.a(2);
+        return _context16.a(2);
     }
-  }, _callee17);
+  }, _callee16);
 })));
-finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
+finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
   var userBorrowed, summaryMsg, confirmed;
-  return _regenerator().w(function (_context18) {
-    while (1) switch (_context18.n) {
+  return _regenerator().w(function (_context17) {
+    while (1) switch (_context17.n) {
       case 0:
         // 현재 사용자의 대여 기록 확인
         userBorrowed = borrowedRecords.filter(function (r) {
@@ -2189,19 +2074,19 @@ finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/
         } else {
           summaryMsg = "\uD83D\uDC64 ".concat(currentUser && currentUser.name || '사용자', "\uB2D8\n\n\uB300\uC5EC\uD558\uC2E0 \uBB3C\uD488\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.\n\n\uCCAB \uD654\uBA74\uC73C\uB85C \uB3CC\uC544\uAC00\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?");
         }
-        _context18.n = 1;
+        _context17.n = 1;
         return showConfirm({
           icon: '✅',
           title: '완료 확인',
           message: summaryMsg
         });
       case 1:
-        confirmed = _context18.v;
+        confirmed = _context17.v;
         if (confirmed) {
-          _context18.n = 2;
+          _context17.n = 2;
           break;
         }
-        return _context18.a(2);
+        return _context17.a(2);
       case 2:
         form.reset();
         studentIdError.textContent = "";
@@ -2212,9 +2097,9 @@ finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/
         currentDueInfo = null;
         showStep("user");
       case 3:
-        return _context18.a(2);
+        return _context17.a(2);
     }
-  }, _callee18);
+  }, _callee17);
 })));
 
 // 자동 로그아웃 기능 (60초 동안 활동 없으면 첫 화면으로)
@@ -2249,31 +2134,31 @@ var resetAutoLogout = function resetAutoLogout() {
 
 // 로고 더블클릭으로 관리자 모드 진입
 if (brandLogo) {
-  brandLogo.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
+  brandLogo.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
     var password, isValid;
-    return _regenerator().w(function (_context19) {
-      while (1) switch (_context19.n) {
+    return _regenerator().w(function (_context18) {
+      while (1) switch (_context18.n) {
         case 0:
           password = prompt("관리자 비밀번호를 입력하세요:");
           if (!(password === null)) {
-            _context19.n = 1;
+            _context18.n = 1;
             break;
           }
-          return _context19.a(2);
+          return _context18.a(2);
         case 1:
-          _context19.n = 2;
+          _context18.n = 2;
           return verifyAdminPassword(password);
         case 2:
-          isValid = _context19.v;
+          isValid = _context18.v;
           if (isValid) {
             showStep("admin");
           } else {
             alert("비밀번호가 틀렸습니다.");
           }
         case 3:
-          return _context19.a(2);
+          return _context18.a(2);
       }
-    }, _callee19);
+    }, _callee18);
   })));
 }
 
@@ -2284,31 +2169,31 @@ backFromChangelogBtn.addEventListener("click", function () {
 
 // 관리자 모드 제목 더블클릭 시 변경 로그 화면으로 이동
 var adminTitle = document.getElementById("adminTitle");
-adminTitle.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
+adminTitle.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
   var password, isValid;
-  return _regenerator().w(function (_context20) {
-    while (1) switch (_context20.n) {
+  return _regenerator().w(function (_context19) {
+    while (1) switch (_context19.n) {
       case 0:
         password = prompt("관리자 비밀번호를 입력하세요:");
         if (!(password === null)) {
-          _context20.n = 1;
+          _context19.n = 1;
           break;
         }
-        return _context20.a(2);
+        return _context19.a(2);
       case 1:
-        _context20.n = 2;
+        _context19.n = 2;
         return verifyAdminPassword(password);
       case 2:
-        isValid = _context20.v;
+        isValid = _context19.v;
         if (isValid) {
           showStep("changelog");
         } else {
           alert("비밀번호가 틀렸습니다.");
         }
       case 3:
-        return _context20.a(2);
+        return _context19.a(2);
     }
-  }, _callee20);
+  }, _callee19);
 })));
 
 // 2. 관리자 모드에서 로그아웃 버튼 이벤트 리스너 추가
@@ -2337,12 +2222,46 @@ var importBackupBtn = document.getElementById("importBackupBtn");
 
 // 백업 내보내기 버튼
 if (exportBackupBtn) {
-  exportBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
+  exportBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
     var password, isValid;
+    return _regenerator().w(function (_context20) {
+      while (1) switch (_context20.n) {
+        case 0:
+          password = prompt("⚠️ 백업을 내보내려면 관리자 비밀번호를 입력하세요:");
+          if (!(password === null)) {
+            _context20.n = 1;
+            break;
+          }
+          return _context20.a(2);
+        case 1:
+          _context20.n = 2;
+          return verifyAdminPassword(password);
+        case 2:
+          isValid = _context20.v;
+          if (isValid) {
+            _context20.n = 3;
+            break;
+          }
+          alert("비밀번호가 틀렸습니다.");
+          return _context20.a(2);
+        case 3:
+          _context20.n = 4;
+          return exportBackup();
+        case 4:
+          return _context20.a(2);
+      }
+    }, _callee20);
+  })));
+}
+
+// 백업 불러오기 버튼
+if (importBackupBtn) {
+  importBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
+    var password, isValid, result;
     return _regenerator().w(function (_context21) {
       while (1) switch (_context21.n) {
         case 0:
-          password = prompt("⚠️ 백업을 내보내려면 관리자 비밀번호를 입력하세요:");
+          password = prompt("⚠️ 백업을 불러오면 현재 데이터가 덮어씌워집니다.\n관리자 비밀번호를 입력하세요:");
           if (!(password === null)) {
             _context21.n = 1;
             break;
@@ -2360,50 +2279,16 @@ if (exportBackupBtn) {
           alert("비밀번호가 틀렸습니다.");
           return _context21.a(2);
         case 3:
-          _context21.n = 4;
-          return exportBackup();
-        case 4:
-          return _context21.a(2);
-      }
-    }, _callee21);
-  })));
-}
-
-// 백업 불러오기 버튼
-if (importBackupBtn) {
-  importBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
-    var password, isValid, result;
-    return _regenerator().w(function (_context22) {
-      while (1) switch (_context22.n) {
-        case 0:
-          password = prompt("⚠️ 백업을 불러오면 현재 데이터가 덮어씌워집니다.\n관리자 비밀번호를 입력하세요:");
-          if (!(password === null)) {
-            _context22.n = 1;
-            break;
-          }
-          return _context22.a(2);
-        case 1:
-          _context22.n = 2;
-          return verifyAdminPassword(password);
-        case 2:
-          isValid = _context22.v;
-          if (isValid) {
-            _context22.n = 3;
-            break;
-          }
-          alert("비밀번호가 틀렸습니다.");
-          return _context22.a(2);
-        case 3:
           if (confirm("⚠️ 정말 백업 파일에서 데이터를 복원하시겠습니까?\n현재 데이터가 모두 덮어씌워집니다.")) {
-            _context22.n = 4;
+            _context21.n = 4;
             break;
           }
-          return _context22.a(2);
+          return _context21.a(2);
         case 4:
-          _context22.n = 5;
+          _context21.n = 5;
           return selectAndImportBackup();
         case 5:
-          result = _context22.v;
+          result = _context21.v;
           alert(result.message);
           if (result.success) {
             // UI 업데이트
@@ -2411,9 +2296,9 @@ if (importBackupBtn) {
             renderItems();
           }
         case 6:
-          return _context22.a(2);
+          return _context21.a(2);
       }
-    }, _callee22);
+    }, _callee21);
   })));
 }
 addItemBtn.addEventListener("click", function () {
@@ -2459,6 +2344,12 @@ window.updateStock = function (index, change) {
   items[index].stock = Math.max(0, items[index].stock + change);
   var newStock = items[index].stock;
   saveData(); // 데이터 저장
+  // API 개별 동기화 (fire-and-forget)
+  apiPost({
+    action: 'updateStock',
+    itemName: item.name,
+    stock: newStock
+  });
   addChangeLog("재고 변경", "".concat(item.name, ": ").concat(oldStock, "\uAC1C \u2192 ").concat(newStock, "\uAC1C ").concat(change > 0 ? "(+1)" : "(-1)"));
   renderAdminData();
   renderItems();
@@ -2466,46 +2357,46 @@ window.updateStock = function (index, change) {
 
 // 강제 반납 함수 (전역 함수로 만들기 위해 window 객체에 할당)
 window.forceReturn = /*#__PURE__*/function () {
-  var _ref23 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(studentId, itemName, dueDate) {
+  var _ref22 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(studentId, itemName, dueDate) {
     var recordIndex, record, password, isValid, item;
-    return _regenerator().w(function (_context23) {
-      while (1) switch (_context23.n) {
+    return _regenerator().w(function (_context22) {
+      while (1) switch (_context22.n) {
         case 0:
           // borrowedRecords에서 해당 기록 찾기
           recordIndex = borrowedRecords.findIndex(function (r) {
             return r.studentId === studentId && r.itemName === itemName && r.dueDate === dueDate;
           });
           if (!(recordIndex === -1)) {
-            _context23.n = 1;
+            _context22.n = 1;
             break;
           }
           alert("대여 기록을 찾을 수 없습니다.");
-          return _context23.a(2);
+          return _context22.a(2);
         case 1:
           record = borrowedRecords[recordIndex]; // 중요 작업: 비밀번호 재확인
           password = prompt("⚠️ 중요한 작업입니다.\n관리자 비밀번호를 다시 입력하세요:");
           if (!(password === null)) {
-            _context23.n = 2;
+            _context22.n = 2;
             break;
           }
-          return _context23.a(2);
+          return _context22.a(2);
         case 2:
-          _context23.n = 3;
+          _context22.n = 3;
           return verifyAdminPassword(password);
         case 3:
-          isValid = _context23.v;
+          isValid = _context22.v;
           if (isValid) {
-            _context23.n = 4;
+            _context22.n = 4;
             break;
           }
           alert("비밀번호가 틀렸습니다.");
-          return _context23.a(2);
+          return _context22.a(2);
         case 4:
           if (confirm("\"".concat(record.name, "\"\uB2D8\uC758 \"").concat(record.itemName, "\" \uAC15\uC81C \uBC18\uB0A9\uC744 \uCC98\uB9AC\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context23.n = 5;
+            _context22.n = 5;
             break;
           }
-          return _context23.a(2);
+          return _context22.a(2);
         case 5:
           // 해당 물품 찾기
           item = items.find(function (i) {
@@ -2520,6 +2411,19 @@ window.forceReturn = /*#__PURE__*/function () {
 
           // 데이터 저장
           saveData();
+          // API 개별 동기화 (fire-and-forget)
+          if (item) {
+            apiPost({
+              action: 'updateStock',
+              itemName: item.name,
+              stock: item.stock
+            });
+          }
+          apiPost({
+            action: 'removeBorrowed',
+            studentId: record.studentId,
+            itemName: record.itemName
+          });
 
           // 변경 로그 추가
           addChangeLog("강제 반납", "".concat(record.name, "(").concat(record.studentId, ")\uC758 ").concat(record.itemName, " \uAC15\uC81C \uBC18\uB0A9 \uCC98\uB9AC"));
@@ -2530,12 +2434,12 @@ window.forceReturn = /*#__PURE__*/function () {
           renderItems();
           alert("".concat(record.itemName, " \uAC15\uC81C \uBC18\uB0A9\uC774 \uCC98\uB9AC\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
         case 6:
-          return _context23.a(2);
+          return _context22.a(2);
       }
-    }, _callee23);
+    }, _callee22);
   }));
   return function (_x10, _x11, _x12) {
-    return _ref23.apply(this, arguments);
+    return _ref22.apply(this, arguments);
   };
 }();
 
@@ -2572,23 +2476,23 @@ window.moveItem = function (index, direction) {
 
 // 물품 삭제 함수
 window.deleteItem = /*#__PURE__*/function () {
-  var _ref24 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(index) {
+  var _ref23 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(index) {
     var item;
-    return _regenerator().w(function (_context24) {
-      while (1) switch (_context24.n) {
+    return _regenerator().w(function (_context23) {
+      while (1) switch (_context23.n) {
         case 0:
           if (!(index < 0 || index >= items.length)) {
-            _context24.n = 1;
+            _context23.n = 1;
             break;
           }
-          return _context24.a(2);
+          return _context23.a(2);
         case 1:
           item = items[index];
           if (confirm("\"".concat(item.name, "\" \uBB3C\uD488\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context24.n = 2;
+            _context23.n = 2;
             break;
           }
-          return _context24.a(2);
+          return _context23.a(2);
         case 2:
           items.splice(index, 1);
           saveData();
@@ -2597,12 +2501,12 @@ window.deleteItem = /*#__PURE__*/function () {
           renderItems();
           alert("".concat(item.name, " \uBB3C\uD488\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
         case 3:
-          return _context24.a(2);
+          return _context23.a(2);
       }
-    }, _callee24);
+    }, _callee23);
   }));
   return function (_x13) {
-    return _ref24.apply(this, arguments);
+    return _ref23.apply(this, arguments);
   };
 }();
 
