@@ -54,7 +54,7 @@
                 if (confirmMessage) confirmMessage.textContent = message || '';
 
                 // 버튼 영역 표시/숨기기
-                const btnArea = confirmOk?.parentElement;
+                const btnArea = confirmOk ? confirmOk.parentElement : null;
                 if (btnArea) btnArea.style.display = autoClose ? 'none' : 'flex';
 
                 if (confirmModal) {
@@ -358,7 +358,7 @@
 
                             resolve({
                                 success: true,
-                                message: `✅ 백업이 복원되었습니다!\n\n복원된 데이터:\n- 물품: ${backupData.data.items?.length || 0}개\n- 대여 기록: ${backupData.data.borrowed?.length || 0}개\n- 변경 로그: ${backupData.data.changeLog?.length || 0}개\n- 로그인 기록: ${backupData.data.loginLog?.length || 0}개`
+                                message: `✅ 백업이 복원되었습니다!\n\n복원된 데이터:\n- 물품: ${(backupData.data.items && backupData.data.items.length) || 0}개\n- 대여 기록: ${(backupData.data.borrowed && backupData.data.borrowed.length) || 0}개\n- 변경 로그: ${(backupData.data.changeLog && backupData.data.changeLog.length) || 0}개\n- 로그인 기록: ${(backupData.data.loginLog && backupData.data.loginLog.length) || 0}개`
                             });
                         } catch (restoreError) {
                             // 복원 실패 시 롤백
@@ -1604,7 +1604,7 @@
                     autoClose: 3000
                 });
                 
-                const dueInfo = currentDueInfo ?? getDueInfo();
+                const dueInfo = currentDueInfo || getDueInfo();
                 borrowedRecords.push({
                     studentId: currentUser.studentId,
                     name: currentUser.name,
@@ -1615,7 +1615,7 @@
                     borrowedAt: new Date().toISOString()
                 });
                 item.stock -= 1;
-                const dueLabel = (currentDueInfo ?? getDueInfo()).label;
+                const dueLabel = (currentDueInfo || getDueInfo()).label;
                 saveData(); // 데이터 저장
                 renderItems();
                 showSelectionResult(
@@ -1682,8 +1682,8 @@
 
         editInfoBtn.addEventListener("click", async () => {
             // 현재 사용자의 대여 기록 확인
-            const userBorrowed = borrowedRecords.filter(r => r.studentId === currentUser?.studentId);
-            
+            const userBorrowed = borrowedRecords.filter(r => r.studentId === (currentUser && currentUser.studentId));
+
             if (userBorrowed.length > 0) {
                 // 대여 기록이 있으면 경고
                 let warningMsg = `⚠️ 대여 중인 물품이 있습니다!\n\n`;
@@ -1711,8 +1711,8 @@
 
         finishBtn.addEventListener("click", async () => {
             // 현재 사용자의 대여 기록 확인
-            const userBorrowed = borrowedRecords.filter(r => r.studentId === currentUser?.studentId);
-            
+            const userBorrowed = borrowedRecords.filter(r => r.studentId === (currentUser && currentUser.studentId));
+
             // 요약 확인 메시지 생성
             let summaryMsg = '';
             if (userBorrowed.length > 0) {
@@ -1724,7 +1724,7 @@
                 });
                 summaryMsg += `\n기한 내 반납 부탁드립니다!`;
             } else {
-                summaryMsg = `👤 ${currentUser?.name || '사용자'}님\n\n대여하신 물품이 없습니다.\n\n첫 화면으로 돌아가시겠습니까?`;
+                summaryMsg = `👤 ${(currentUser && currentUser.name) || '사용자'}님\n\n대여하신 물품이 없습니다.\n\n첫 화면으로 돌아가시겠습니까?`;
             }
             
             const confirmed = await showConfirm({
