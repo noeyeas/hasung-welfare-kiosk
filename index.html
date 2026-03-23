@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=41">
+    <link rel="stylesheet" href="css/styles.css?v=42">
 </head>
 <body>
     <!-- 브랜드 로고 -->
@@ -95,7 +95,7 @@
         </section>
 
         <!-- 관리자 모드 현재 대여 기록 (왼쪽 고정) -->
-        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+        <div id="adminBorrowedPopup" class="hidden" style="z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
             <h3 style="margin: 0 0 16px; color: #ffc485; font-size: 1.3rem; flex-shrink: 0;">📝 현재 대여 기록</h3>
             <div id="adminBorrowedTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
         </div>
@@ -210,6 +210,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=41"></script>
+    <script src="js/script.js?v=42"></script>
 </body>
 </html>
