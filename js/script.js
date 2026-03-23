@@ -2155,34 +2155,37 @@ var resetAutoLogout = function resetAutoLogout() {
 
 // 로고 더블클릭/더블탭으로 관리자 모드 진입
 var lastLogoTap = 0;
-function handleLogoAdmin() {
+var adminEntering = false;
+function handleLogoAdmin(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (adminEntering) return;
   var now = Date.now();
-  if (now - lastLogoTap < 500) {
+  if (now - lastLogoTap < 600) {
     lastLogoTap = 0;
+    adminEntering = true;
     var password = prompt("관리자 비밀번호를 입력하세요:");
-    if (password === null) return;
+    if (password === null) {
+      adminEntering = false;
+      return;
+    }
     verifyAdminPassword(password).then(function (isValid) {
       if (isValid) {
         showStep("admin");
       } else {
         alert("비밀번호가 틀렸습니다.");
       }
+      adminEntering = false;
     });
   } else {
     lastLogoTap = now;
   }
 }
 if (brandLogo) {
-  var isTouchDevice = false;
-  brandLogo.addEventListener("touchend", function () {
-    isTouchDevice = true;
-    handleLogoAdmin();
-  });
-  brandLogo.addEventListener("dblclick", function () {
-    if (!isTouchDevice) {
-      handleLogoAdmin();
-    }
-  });
+  brandLogo.addEventListener("touchend", handleLogoAdmin);
+  brandLogo.addEventListener("click", handleLogoAdmin);
 }
 
 // 변경 로그 화면에서 돌아가기 버튼
