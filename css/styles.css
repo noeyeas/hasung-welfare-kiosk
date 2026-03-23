@@ -298,6 +298,7 @@ input:focus {
     width: 2.5rem;
     height: 2.5rem;
     flex-shrink: 0;
+    margin-right: 8px;
 }
 .item-card {
     padding: 16px 20px;
