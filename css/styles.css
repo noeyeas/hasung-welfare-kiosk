@@ -759,7 +759,8 @@ input:focus {
         top: auto !important;
         width: 100% !important;
         height: auto !important;
-        max-height: 50vh;
+        max-height: 40vh;
+        margin-bottom: 16px;
     }
     #loginLogPopup {
         position: relative !important;

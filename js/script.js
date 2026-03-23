@@ -1182,8 +1182,13 @@ var showStep = function showStep(step) {
     // 관리자 모드일 때 현재 대여 기록 공간 확보
     var kiosk = document.querySelector('.kiosk');
     if (kiosk) {
-      kiosk.style.marginLeft = '740px';
-      kiosk.style.width = 'min(1200px, calc(100vw - 760px))';
+      if (window.innerWidth > 1400) {
+        kiosk.style.marginLeft = '740px';
+        kiosk.style.width = 'min(1200px, calc(100vw - 760px))';
+      } else {
+        kiosk.style.marginLeft = '0';
+        kiosk.style.width = '100%';
+      }
     }
     renderAdminData(); // 관리자 모드 진입 시 데이터 렌더링
   } else if (step === "overdue") {
