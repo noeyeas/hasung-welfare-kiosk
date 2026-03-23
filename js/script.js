@@ -13,7 +13,6 @@ if (!String.prototype.padStart) {
 }
 if (!String.prototype.repeat) {
   String.prototype.repeat = function(count) {
-    if (this == null) throw new TypeError('can\'t convert ' + this + ' to object');
     var str = '' + this;
     count = +count;
     if (count < 0 || count === Infinity) throw new RangeError('Invalid count value');
@@ -30,7 +29,6 @@ if (!String.prototype.repeat) {
 }
 if (!Array.prototype.includes) {
   Array.prototype.includes = function(searchElement, fromIndex) {
-    if (this == null) throw new TypeError('"this" is null or not defined');
     var o = Object(this);
     var len = o.length >>> 0;
     if (len === 0) return false;
@@ -52,42 +50,30 @@ if (!String.prototype.includes) {
 }
 if (!Array.prototype.find) {
   Array.prototype.find = function(predicate) {
-    if (this == null) throw new TypeError('"this" is null or not defined');
-    var o = Object(this);
-    var len = o.length >>> 0;
-    if (typeof predicate !== 'function') throw new TypeError('predicate must be a function');
-    var thisArg = arguments[1];
-    for (var k = 0; k < len; k++) {
-      var kValue = o[k];
-      if (predicate.call(thisArg, kValue, k, o)) return kValue;
+    for (var i = 0; i < this.length; i++) {
+      if (predicate(this[i], i, this)) return this[i];
     }
     return undefined;
   };
 }
 if (!Array.prototype.findIndex) {
   Array.prototype.findIndex = function(predicate) {
-    if (this == null) throw new TypeError('"this" is null or not defined');
-    var o = Object(this);
-    var len = o.length >>> 0;
-    if (typeof predicate !== 'function') throw new TypeError('predicate must be a function');
-    var thisArg = arguments[1];
-    for (var k = 0; k < len; k++) {
-      if (predicate.call(thisArg, o[k], k, o)) return k;
+    for (var i = 0; i < this.length; i++) {
+      if (predicate(this[i], i, this)) return i;
     }
     return -1;
   };
 }
 if (!Array.from) {
-  Array.from = function(arrayLike, mapFn, thisArg) {
-    var arr = [];
-    var len = arrayLike.length >>> 0;
-    for (var i = 0; i < len; i++) {
-      arr.push(mapFn ? mapFn.call(thisArg, arrayLike[i], i) : arrayLike[i]);
+  Array.from = function(arrayLike) {
+    var result = [];
+    for (var i = 0; i < arrayLike.length; i++) {
+      result.push(arrayLike[i]);
     }
-    return arr;
+    return result;
   };
 }
-if (!Object.setPrototypeOf) {
+
 "use strict";
 
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
