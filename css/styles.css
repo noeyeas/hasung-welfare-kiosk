@@ -480,15 +480,6 @@ input:focus {
     color: #9aa9ff;
     font-size: 1.05rem;
 }
-/* 관리자 대여현황 팝업 - 데스크탑 */
-#adminBorrowedPopup {
-    position: fixed;
-    left: 20px;
-    top: 20px;
-    width: 700px;
-    height: calc(100vh - 40px);
-}
-
 /* STEP1 상시 안내 팝업 (모달) */
 .cctv-modal {
     position: fixed;
@@ -763,13 +754,7 @@ input:focus {
         padding: 12px 14px;
     }
     #adminBorrowedPopup {
-        position: fixed;
-        left: 10px;
-        top: 60px;
-        width: 230px;
-        height: calc(100vh - 120px);
-        font-size: 0.75rem;
-        overflow-y: auto;
+        display: none !important;
     }
     #loginLogPopup {
         position: relative !important;

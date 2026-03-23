@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=42">
+    <link rel="stylesheet" href="css/styles.css?v=43">
 </head>
 <body>
     <!-- 브랜드 로고 -->
@@ -35,6 +35,13 @@
 
         <section id="step-admin" class="hidden">
             <div id="adminTitle" class="step-title">관리자 모드</div>
+            <button id="toggleBorrowedBtn" style="margin-bottom: 12px; padding: 10px 20px; background: #2a3044; color: #ffc485; border: 1px solid #ffc485; border-radius: 12px; font-size: 0.95rem; cursor: pointer;">📝 대여현황 보기</button>
+
+            <!-- 태블릿용 대여현황 패널 -->
+            <div id="mobileBorrowedPanel" class="hidden" style="background: #11131c; border: 1px solid #2a3044; border-radius: 16px; padding: 16px; margin-bottom: 16px; max-height: 40vh; overflow-y: auto;">
+                <h3 style="margin: 0 0 12px; color: #ffc485; font-size: 1.1rem;">📝 현재 대여 기록</h3>
+                <div id="mobileBorrowedTable"></div>
+            </div>
 
             <!-- 통계 대시보드 -->
             <div id="adminDashboard" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
@@ -95,7 +102,7 @@
         </section>
 
         <!-- 관리자 모드 현재 대여 기록 (왼쪽 고정) -->
-        <div id="adminBorrowedPopup" class="hidden" style="z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
             <h3 style="margin: 0 0 16px; color: #ffc485; font-size: 1.3rem; flex-shrink: 0;">📝 현재 대여 기록</h3>
             <div id="adminBorrowedTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
         </div>
@@ -210,6 +217,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=42"></script>
+    <script src="js/script.js?v=43"></script>
 </body>
 </html>

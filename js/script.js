@@ -1325,7 +1325,10 @@ var renderAdminData = function renderAdminData() {
 
   // 2. 현재 대여 기록 테이블 렌더링
   if (borrowedRecords.length === 0) {
-    adminBorrowedTable.innerHTML = "<p style='margin: 0; padding: 10px; color: #b5c0d0;'>현재 대여된 물품이 없습니다.</p>";
+    var emptyMsg = "<p style='margin: 0; padding: 10px; color: #b5c0d0;'>현재 대여된 물품이 없습니다.</p>";
+    adminBorrowedTable.innerHTML = emptyMsg;
+    var mobileBorrowedTable2 = document.getElementById("mobileBorrowedTable");
+    if (mobileBorrowedTable2) mobileBorrowedTable2.innerHTML = emptyMsg;
     return;
   }
   var borrowedHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th></tr>\n                    ".concat(borrowedRecords.map(function (record) {
@@ -1334,7 +1337,25 @@ var renderAdminData = function renderAdminData() {
     return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(record.itemName, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.phone, "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; font-size: 0.9rem;\">").concat(dueLabelWithoutTime, "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   adminBorrowedTable.innerHTML = borrowedHtml;
+  // 모바일 대여현황 패널에도 동일 내용 복사
+  var mobileBorrowedTable = document.getElementById("mobileBorrowedTable");
+  if (mobileBorrowedTable) mobileBorrowedTable.innerHTML = borrowedHtml;
 };
+
+// 대여현황 토글 버튼
+var toggleBorrowedBtn = document.getElementById("toggleBorrowedBtn");
+var mobileBorrowedPanel = document.getElementById("mobileBorrowedPanel");
+if (toggleBorrowedBtn && mobileBorrowedPanel) {
+  toggleBorrowedBtn.addEventListener("click", function () {
+    if (mobileBorrowedPanel.classList.contains("hidden")) {
+      mobileBorrowedPanel.classList.remove("hidden");
+      toggleBorrowedBtn.textContent = "📝 대여현황 닫기";
+    } else {
+      mobileBorrowedPanel.classList.add("hidden");
+      toggleBorrowedBtn.textContent = "📝 대여현황 보기";
+    }
+  });
+}
 
 // 변경 로그 렌더링 함수 (관리자 모드용)
 var renderChangeLog = function renderChangeLog() {
