@@ -664,12 +664,26 @@ window.selectAndImportBackup = selectAndImportBackup;
 // ========================================
 // 보안: 비밀번호 해싱 함수
 // ========================================
+// 간단한 해시 함수 (crypto.subtle 없는 환경용 폴백)
+function simpleHash(str) {
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) {
+    var _char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + _char;
+    hash = hash & hash;
+  }
+  return hash.toString(16);
+}
 var hashPassword = /*#__PURE__*/function () {
   var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(password) {
     var encoder, data, hashBuffer, hashArray, hashHex;
     return _regenerator().w(function (_context7) {
       while (1) switch (_context7.n) {
         case 0:
+          if (!(typeof crypto !== 'undefined' && crypto.subtle)) {
+            _context7.n = 2;
+            break;
+          }
           encoder = new TextEncoder();
           data = encoder.encode(password);
           _context7.n = 1;
@@ -681,6 +695,8 @@ var hashPassword = /*#__PURE__*/function () {
             return b.toString(16).padStart(2, '0');
           }).join('');
           return _context7.a(2, hashHex);
+        case 2:
+          return _context7.a(2, simpleHash(password));
       }
     }, _callee7);
   }));
@@ -690,9 +706,8 @@ var hashPassword = /*#__PURE__*/function () {
 }();
 
 // 관리자 비밀번호 해시 (SHA-256)
-// 원본: "041104"
-// 보안을 위해 해시값만 저장
 var ADMIN_PASSWORD_HASH = "de6d045537291b8c8762940084f51bd3d02055d5cbc250e6d2fc6ddb09d88325";
+var ADMIN_PASSWORD_SIMPLE_HASH = simpleHash("041104");
 
 // 비밀번호 검증 함수
 var verifyAdminPassword = /*#__PURE__*/function () {
@@ -705,7 +720,7 @@ var verifyAdminPassword = /*#__PURE__*/function () {
           return hashPassword(inputPassword);
         case 1:
           inputHash = _context8.v;
-          return _context8.a(2, inputHash === ADMIN_PASSWORD_HASH);
+          return _context8.a(2, inputHash === ADMIN_PASSWORD_HASH || inputHash === ADMIN_PASSWORD_SIMPLE_HASH);
       }
     }, _callee8);
   }));
