@@ -2135,34 +2135,28 @@ var resetAutoLogout = function resetAutoLogout() {
   });
 });
 
-// 로고 더블클릭으로 관리자 모드 진입
-if (brandLogo) {
-  brandLogo.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
-    var password, isValid;
-    return _regenerator().w(function (_context18) {
-      while (1) switch (_context18.n) {
-        case 0:
-          password = prompt("관리자 비밀번호를 입력하세요:");
-          if (!(password === null)) {
-            _context18.n = 1;
-            break;
-          }
-          return _context18.a(2);
-        case 1:
-          _context18.n = 2;
-          return verifyAdminPassword(password);
-        case 2:
-          isValid = _context18.v;
-          if (isValid) {
-            showStep("admin");
-          } else {
-            alert("비밀번호가 틀렸습니다.");
-          }
-        case 3:
-          return _context18.a(2);
+// 로고 더블클릭/더블탭으로 관리자 모드 진입
+var lastLogoTap = 0;
+function handleLogoAdmin() {
+  var now = Date.now();
+  if (now - lastLogoTap < 500) {
+    lastLogoTap = 0;
+    var password = prompt("관리자 비밀번호를 입력하세요:");
+    if (password === null) return;
+    verifyAdminPassword(password).then(function (isValid) {
+      if (isValid) {
+        showStep("admin");
+      } else {
+        alert("비밀번호가 틀렸습니다.");
       }
-    }, _callee18);
-  })));
+    });
+  } else {
+    lastLogoTap = now;
+  }
+}
+if (brandLogo) {
+  brandLogo.addEventListener("touchend", handleLogoAdmin);
+  brandLogo.addEventListener("dblclick", handleLogoAdmin);
 }
 
 // 변경 로그 화면에서 돌아가기 버튼
@@ -2172,31 +2166,31 @@ backFromChangelogBtn.addEventListener("click", function () {
 
 // 관리자 모드 제목 더블클릭 시 변경 로그 화면으로 이동
 var adminTitle = document.getElementById("adminTitle");
-adminTitle.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
+adminTitle.addEventListener("dblclick", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
   var password, isValid;
-  return _regenerator().w(function (_context19) {
-    while (1) switch (_context19.n) {
+  return _regenerator().w(function (_context18) {
+    while (1) switch (_context18.n) {
       case 0:
         password = prompt("관리자 비밀번호를 입력하세요:");
         if (!(password === null)) {
-          _context19.n = 1;
+          _context18.n = 1;
           break;
         }
-        return _context19.a(2);
+        return _context18.a(2);
       case 1:
-        _context19.n = 2;
+        _context18.n = 2;
         return verifyAdminPassword(password);
       case 2:
-        isValid = _context19.v;
+        isValid = _context18.v;
         if (isValid) {
           showStep("changelog");
         } else {
           alert("비밀번호가 틀렸습니다.");
         }
       case 3:
-        return _context19.a(2);
+        return _context18.a(2);
     }
-  }, _callee19);
+  }, _callee18);
 })));
 
 // 2. 관리자 모드에서 로그아웃 버튼 이벤트 리스너 추가
@@ -2225,12 +2219,46 @@ var importBackupBtn = document.getElementById("importBackupBtn");
 
 // 백업 내보내기 버튼
 if (exportBackupBtn) {
-  exportBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
+  exportBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
     var password, isValid;
+    return _regenerator().w(function (_context19) {
+      while (1) switch (_context19.n) {
+        case 0:
+          password = prompt("⚠️ 백업을 내보내려면 관리자 비밀번호를 입력하세요:");
+          if (!(password === null)) {
+            _context19.n = 1;
+            break;
+          }
+          return _context19.a(2);
+        case 1:
+          _context19.n = 2;
+          return verifyAdminPassword(password);
+        case 2:
+          isValid = _context19.v;
+          if (isValid) {
+            _context19.n = 3;
+            break;
+          }
+          alert("비밀번호가 틀렸습니다.");
+          return _context19.a(2);
+        case 3:
+          _context19.n = 4;
+          return exportBackup();
+        case 4:
+          return _context19.a(2);
+      }
+    }, _callee19);
+  })));
+}
+
+// 백업 불러오기 버튼
+if (importBackupBtn) {
+  importBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20() {
+    var password, isValid, result;
     return _regenerator().w(function (_context20) {
       while (1) switch (_context20.n) {
         case 0:
-          password = prompt("⚠️ 백업을 내보내려면 관리자 비밀번호를 입력하세요:");
+          password = prompt("⚠️ 백업을 불러오면 현재 데이터가 덮어씌워집니다.\n관리자 비밀번호를 입력하세요:");
           if (!(password === null)) {
             _context20.n = 1;
             break;
@@ -2248,50 +2276,16 @@ if (exportBackupBtn) {
           alert("비밀번호가 틀렸습니다.");
           return _context20.a(2);
         case 3:
-          _context20.n = 4;
-          return exportBackup();
-        case 4:
-          return _context20.a(2);
-      }
-    }, _callee20);
-  })));
-}
-
-// 백업 불러오기 버튼
-if (importBackupBtn) {
-  importBackupBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
-    var password, isValid, result;
-    return _regenerator().w(function (_context21) {
-      while (1) switch (_context21.n) {
-        case 0:
-          password = prompt("⚠️ 백업을 불러오면 현재 데이터가 덮어씌워집니다.\n관리자 비밀번호를 입력하세요:");
-          if (!(password === null)) {
-            _context21.n = 1;
-            break;
-          }
-          return _context21.a(2);
-        case 1:
-          _context21.n = 2;
-          return verifyAdminPassword(password);
-        case 2:
-          isValid = _context21.v;
-          if (isValid) {
-            _context21.n = 3;
-            break;
-          }
-          alert("비밀번호가 틀렸습니다.");
-          return _context21.a(2);
-        case 3:
           if (confirm("⚠️ 정말 백업 파일에서 데이터를 복원하시겠습니까?\n현재 데이터가 모두 덮어씌워집니다.")) {
-            _context21.n = 4;
+            _context20.n = 4;
             break;
           }
-          return _context21.a(2);
+          return _context20.a(2);
         case 4:
-          _context21.n = 5;
+          _context20.n = 5;
           return selectAndImportBackup();
         case 5:
-          result = _context21.v;
+          result = _context20.v;
           alert(result.message);
           if (result.success) {
             // UI 업데이트
@@ -2299,9 +2293,9 @@ if (importBackupBtn) {
             renderItems();
           }
         case 6:
-          return _context21.a(2);
+          return _context20.a(2);
       }
-    }, _callee21);
+    }, _callee20);
   })));
 }
 addItemBtn.addEventListener("click", function () {
@@ -2360,46 +2354,46 @@ window.updateStock = function (index, change) {
 
 // 강제 반납 함수 (전역 함수로 만들기 위해 window 객체에 할당)
 window.forceReturn = /*#__PURE__*/function () {
-  var _ref22 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(studentId, itemName, dueDate) {
+  var _ref21 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(studentId, itemName, dueDate) {
     var recordIndex, record, password, isValid, item;
-    return _regenerator().w(function (_context22) {
-      while (1) switch (_context22.n) {
+    return _regenerator().w(function (_context21) {
+      while (1) switch (_context21.n) {
         case 0:
           // borrowedRecords에서 해당 기록 찾기
           recordIndex = borrowedRecords.findIndex(function (r) {
             return r.studentId === studentId && r.itemName === itemName && r.dueDate === dueDate;
           });
           if (!(recordIndex === -1)) {
-            _context22.n = 1;
+            _context21.n = 1;
             break;
           }
           alert("대여 기록을 찾을 수 없습니다.");
-          return _context22.a(2);
+          return _context21.a(2);
         case 1:
           record = borrowedRecords[recordIndex]; // 중요 작업: 비밀번호 재확인
           password = prompt("⚠️ 중요한 작업입니다.\n관리자 비밀번호를 다시 입력하세요:");
           if (!(password === null)) {
-            _context22.n = 2;
+            _context21.n = 2;
             break;
           }
-          return _context22.a(2);
+          return _context21.a(2);
         case 2:
-          _context22.n = 3;
+          _context21.n = 3;
           return verifyAdminPassword(password);
         case 3:
-          isValid = _context22.v;
+          isValid = _context21.v;
           if (isValid) {
-            _context22.n = 4;
+            _context21.n = 4;
             break;
           }
           alert("비밀번호가 틀렸습니다.");
-          return _context22.a(2);
+          return _context21.a(2);
         case 4:
           if (confirm("\"".concat(record.name, "\"\uB2D8\uC758 \"").concat(record.itemName, "\" \uAC15\uC81C \uBC18\uB0A9\uC744 \uCC98\uB9AC\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context22.n = 5;
+            _context21.n = 5;
             break;
           }
-          return _context22.a(2);
+          return _context21.a(2);
         case 5:
           // 해당 물품 찾기
           item = items.find(function (i) {
@@ -2437,12 +2431,12 @@ window.forceReturn = /*#__PURE__*/function () {
           renderItems();
           alert("".concat(record.itemName, " \uAC15\uC81C \uBC18\uB0A9\uC774 \uCC98\uB9AC\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
         case 6:
-          return _context22.a(2);
+          return _context21.a(2);
       }
-    }, _callee22);
+    }, _callee21);
   }));
   return function (_x10, _x11, _x12) {
-    return _ref22.apply(this, arguments);
+    return _ref21.apply(this, arguments);
   };
 }();
 
@@ -2479,23 +2473,23 @@ window.moveItem = function (index, direction) {
 
 // 물품 삭제 함수
 window.deleteItem = /*#__PURE__*/function () {
-  var _ref23 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(index) {
+  var _ref22 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(index) {
     var item;
-    return _regenerator().w(function (_context23) {
-      while (1) switch (_context23.n) {
+    return _regenerator().w(function (_context22) {
+      while (1) switch (_context22.n) {
         case 0:
           if (!(index < 0 || index >= items.length)) {
-            _context23.n = 1;
+            _context22.n = 1;
             break;
           }
-          return _context23.a(2);
+          return _context22.a(2);
         case 1:
           item = items[index];
           if (confirm("\"".concat(item.name, "\" \uBB3C\uD488\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context23.n = 2;
+            _context22.n = 2;
             break;
           }
-          return _context23.a(2);
+          return _context22.a(2);
         case 2:
           items.splice(index, 1);
           saveData();
@@ -2504,12 +2498,12 @@ window.deleteItem = /*#__PURE__*/function () {
           renderItems();
           alert("".concat(item.name, " \uBB3C\uD488\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
         case 3:
-          return _context23.a(2);
+          return _context22.a(2);
       }
-    }, _callee23);
+    }, _callee22);
   }));
   return function (_x13) {
-    return _ref23.apply(this, arguments);
+    return _ref22.apply(this, arguments);
   };
 }();
 
