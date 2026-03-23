@@ -552,15 +552,15 @@ input:focus {
 }
 .security-marquee-inner {
     display: flex;
+    justify-content: center;
     white-space: nowrap;
-    animation: marquee-scroll 10s linear infinite;
 }
 .security-marquee-inner span {
     color: #ff6b6b;
     font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.03em;
-    padding: 0 60px;
+    padding: 0 20px;
 }
 @keyframes marquee-scroll {
     0% { transform: translateX(0); }
