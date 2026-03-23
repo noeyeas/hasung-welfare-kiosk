@@ -552,8 +552,8 @@ input:focus {
 }
 .security-marquee-inner {
     display: flex;
-    justify-content: center;
     white-space: nowrap;
+    animation: marquee-scroll 15s linear infinite;
 }
 .security-marquee-inner span {
     color: #ff6b6b;
