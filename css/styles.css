@@ -701,13 +701,13 @@ input:focus {
     .kiosk {
         width: 66vw;
         max-width: none;
-        min-height: calc(100vh - 20px);
-        height: auto;
-        max-height: none;
+        height: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
         margin-right: 5px;
         border-radius: 20px;
         padding: 24px 20px 48px;
         overflow-y: auto;
+        box-sizing: border-box;
     }
     html, body {
         overflow: auto !important;
