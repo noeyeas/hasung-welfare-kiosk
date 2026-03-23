@@ -88,11 +88,6 @@ if (!Array.from) {
   };
 }
 if (!Object.setPrototypeOf) {
-  Object.setPrototypeOf = function(obj, proto) {
-    obj.__proto__ = proto;
-    return obj;
-  };
-}
 "use strict";
 
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -764,7 +759,7 @@ var validateStudentId = function validateStudentId(studentId) {
 
   // 2. 학과 코드 검증 (5~7번째 자리)
   var departmentCode = studentId.substring(4, 7);
-  if (validDepartmentCodes.indexOf(departmentCode) === -1) {
+  if (!validDepartmentCodes.includes(departmentCode)) {
     return {
       valid: false,
       message: "인공지능융합대학 학생만 이용 가능합니다."
@@ -817,7 +812,7 @@ var validatePhone = function validatePhone(phone) {
   // 010, 011, 016, 017, 018, 019로 시작하는지 확인
   var prefix = phone.substring(0, 3);
   var validPrefixes = ['010', '011', '016', '017', '018', '019'];
-  if (validPrefixes.indexOf(prefix) === -1) {
+  if (!validPrefixes.includes(prefix)) {
     return {
       valid: false,
       message: "유효하지 않은 전화번호입니다."
@@ -1535,7 +1530,7 @@ var renderItems = function renderItems() {
   // 검색 필터링
   if (searchQuery) {
     filteredItems = filteredItems.filter(function (item) {
-      return item.name.toLowerCase().indexOf(searchQuery) !== -1 || item.type.toLowerCase().indexOf(searchQuery) !== -1 || item.notice && item.notice.toLowerCase().indexOf(searchQuery) !== -1;
+      return item.name.toLowerCase().includes(searchQuery) || item.type.toLowerCase().includes(searchQuery) || item.notice && item.notice.toLowerCase().includes(searchQuery);
     });
   }
   if (filteredItems.length === 0) {
@@ -1548,6 +1543,13 @@ var renderItems = function renderItems() {
     var originalIndex = items.indexOf(item);
     return "\n                    <div class=\"item-card\">\n                        ".concat(item.icon ? "<span style=\"font-size: 2.5rem; flex-shrink: 0;\">".concat(item.icon, "</span>") : item.image ? "<img src=\"".concat(item.image, "\" alt=\"").concat(item.name, "\" style=\"width: 50px; height: 50px; object-fit: contain; flex-shrink: 0;\">") : '', "\n                        <div class=\"item-card-info\">\n                            <strong>").concat(item.name, "</strong>\n                            <small>").concat(item.type, " \xB7 \uC7AC\uACE0 ").concat(item.stock, "\uAC1C</small>\n                        </div>\n                        <div class=\"item-card-actions\">\n                            ").concat(item.type === "대여" ? "\n                                <button class=\"borrow ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"borrow\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '대여하기', "\n                                </button>\n                                <button class=\"secondary\" data-action=\"return\" data-index=\"").concat(originalIndex, "\">\n                                    \uBC18\uB0A9\uD558\uAE30\n                                </button>\n                            ") : "\n                                <button class=\"consume ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"consume\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '수령하기', "\n                                </button>\n                            "), "\n                        </div>\n                    </div>\n                ");
   }).join("");
+  // Twemoji로 이모지를 이미지로 변환 (구형 브라우저 지원)
+  if (typeof twemoji !== 'undefined') {
+    twemoji.parse(itemGrid, {
+      folder: 'svg',
+      ext: '.svg'
+    });
+  }
 };
 renderItems();
 
