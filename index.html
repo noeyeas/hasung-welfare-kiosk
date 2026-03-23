@@ -113,23 +113,25 @@
             <div id="overdueTable" class="admin-data-table" style="font-size: 0.9rem;"></div>
         </section>
 
-        <section id="step-changelog" class="hidden">
-            <div class="step-title">변경 로그</div>
-            <button id="backFromChangelog" class="btn-primary">관리자 모드로 돌아가기</button>
+        <section id="step-changelog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0c12; z-index: 2000; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                <div class="step-title" style="margin: 0;">변경 로그</div>
+                <button id="backFromChangelog" class="btn-primary" style="padding: 10px 20px; font-size: 0.95rem;">관리자 모드로 돌아가기</button>
+            </div>
 
             <!-- 탭 버튼 -->
-            <div id="logTabs" style="display: flex; gap: 0; margin-top: 20px; border-bottom: 2px solid #2a3044;">
+            <div id="logTabs" style="display: flex; gap: 0; border-bottom: 2px solid #2a3044;">
                 <button id="tabChangeLog" class="log-tab active" style="flex: 1; padding: 12px; background: #2a3044; color: #9aa9ff; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">📋 최근 변경 로그</button>
                 <button id="tabLoginLog" class="log-tab" style="flex: 1; padding: 12px; background: transparent; color: #6cb4d8; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">👤 로그인 기록</button>
             </div>
 
             <!-- 변경 로그 내용 -->
-            <div id="changeLogPanel" style="max-height: 60vh; overflow-y: auto;">
+            <div id="changeLogPanel" style="flex: 1; overflow-y: auto;">
                 <div id="changeLogView" class="admin-data-table"></div>
             </div>
 
             <!-- 로그인 기록 내용 -->
-            <div id="loginLogPanel" class="hidden" style="max-height: 60vh; overflow-y: auto;">
+            <div id="loginLogPanel" class="hidden" style="flex: 1; overflow-y: auto;">
                 <div id="loginLogTable" class="admin-data-table"></div>
             </div>
         </section>
@@ -228,6 +230,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=51"></script>
+    <script src="js/script.js?v=52"></script>
 </body>
 </html>
