@@ -553,7 +553,7 @@ input:focus {
 .security-marquee-inner {
     display: flex;
     white-space: nowrap;
-    animation: marquee-scroll 15s linear infinite;
+    animation: marquee-scroll 30s linear infinite;
 }
 .security-marquee-inner span {
     color: #ff6b6b;
