@@ -2173,8 +2173,16 @@ function handleLogoAdmin() {
   }
 }
 if (brandLogo) {
-  brandLogo.addEventListener("touchend", handleLogoAdmin);
-  brandLogo.addEventListener("dblclick", handleLogoAdmin);
+  var isTouchDevice = false;
+  brandLogo.addEventListener("touchend", function () {
+    isTouchDevice = true;
+    handleLogoAdmin();
+  });
+  brandLogo.addEventListener("dblclick", function () {
+    if (!isTouchDevice) {
+      handleLogoAdmin();
+    }
+  });
 }
 
 // 변경 로그 화면에서 돌아가기 버튼
