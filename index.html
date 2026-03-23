@@ -35,12 +35,10 @@
 
         <section id="step-admin" class="hidden">
             <div id="adminTitle" class="step-title">관리자 모드</div>
-            <button id="toggleBorrowedBtn" style="margin-bottom: 12px; padding: 10px 20px; background: #2a3044; color: #ffc485; border: 1px solid #ffc485; border-radius: 12px; font-size: 0.95rem; cursor: pointer;">📝 대여현황 보기</button>
-
-            <!-- 태블릿용 대여현황 패널 -->
-            <div id="mobileBorrowedPanel" class="hidden" style="background: #11131c; border: 1px solid #2a3044; border-radius: 16px; padding: 16px; margin-bottom: 16px; max-height: 40vh; overflow-y: auto;">
-                <h3 style="margin: 0 0 12px; color: #ffc485; font-size: 1.1rem;">📝 현재 대여 기록</h3>
-                <div id="mobileBorrowedTable"></div>
+            <!-- 태블릿용 대여현황 패널 (왼쪽 고정) -->
+            <div id="mobileBorrowedPanel" class="hidden" style="position: fixed; left: 10px; top: 20px; width: 230px; height: calc(100vh - 80px); background: #11131c; border: 1px solid #2a3044; border-radius: 16px; padding: 12px; overflow-y: auto; z-index: 1100;">
+                <h3 style="margin: 0 0 10px; color: #ffc485; font-size: 0.95rem;">📝 대여 기록</h3>
+                <div id="mobileBorrowedTable" style="font-size: 0.75rem;"></div>
             </div>
 
             <!-- 통계 대시보드 -->
@@ -217,6 +215,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=45"></script>
+    <script src="js/script.js?v=46"></script>
 </body>
 </html>

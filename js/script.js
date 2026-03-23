@@ -1158,6 +1158,8 @@ var showStep = function showStep(step) {
   if (userInfoPopup) userInfoPopup.classList.add("hidden");
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
+  var mobileBorrowedPanelEl = document.getElementById("mobileBorrowedPanel");
+  if (mobileBorrowedPanelEl) mobileBorrowedPanelEl.classList.add("hidden");
   if (brandLogo) brandLogo.classList.add("hidden");
   var loginLogPopup = document.getElementById("loginLogPopup");
   if (loginLogPopup) loginLogPopup.classList.add("hidden");
@@ -1187,8 +1189,13 @@ var showStep = function showStep(step) {
         kiosk.style.width = 'min(1200px, calc(100vw - 760px))';
       } else {
         kiosk.style.marginLeft = '0';
-        kiosk.style.width = '100%';
+        kiosk.style.width = '66vw';
       }
+    }
+    // 태블릿 왼쪽 대여현황 패널 표시
+    var mobileBorrowedPanel = document.getElementById("mobileBorrowedPanel");
+    if (mobileBorrowedPanel && window.innerWidth <= 1400) {
+      mobileBorrowedPanel.classList.remove("hidden");
     }
     renderAdminData(); // 관리자 모드 진입 시 데이터 렌더링
   } else if (step === "overdue") {
@@ -1341,21 +1348,6 @@ var renderAdminData = function renderAdminData() {
   var mobileBorrowedTable = document.getElementById("mobileBorrowedTable");
   if (mobileBorrowedTable) mobileBorrowedTable.innerHTML = borrowedHtml;
 };
-
-// 대여현황 토글 버튼
-var toggleBorrowedBtn = document.getElementById("toggleBorrowedBtn");
-var mobileBorrowedPanel = document.getElementById("mobileBorrowedPanel");
-if (toggleBorrowedBtn && mobileBorrowedPanel) {
-  toggleBorrowedBtn.addEventListener("click", function () {
-    if (mobileBorrowedPanel.classList.contains("hidden")) {
-      mobileBorrowedPanel.classList.remove("hidden");
-      toggleBorrowedBtn.textContent = "📝 대여현황 닫기";
-    } else {
-      mobileBorrowedPanel.classList.add("hidden");
-      toggleBorrowedBtn.textContent = "📝 대여현황 보기";
-    }
-  });
-}
 
 // 변경 로그 렌더링 함수 (관리자 모드용)
 var renderChangeLog = function renderChangeLog() {
