@@ -1404,6 +1404,9 @@ var renderLoginLog = function renderLoginLog() {
     return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.phone, "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   loginLogTable.innerHTML = logHtml;
+  // 데스크탑 팝업에도 동일 내용 복사
+  var loginLogTable2 = document.getElementById("loginLogTable2");
+  if (loginLogTable2) loginLogTable2.innerHTML = logHtml;
 };
 
 // 연체자 데이터 렌더링 함수
@@ -2190,6 +2193,26 @@ if (brandLogo) {
 backFromChangelogBtn.addEventListener("click", function () {
   showStep("admin");
 });
+
+// 변경 로그 / 로그인 기록 탭 전환
+var tabChangeLog = document.getElementById("tabChangeLog");
+var tabLoginLog = document.getElementById("tabLoginLog");
+var changeLogPanel = document.getElementById("changeLogPanel");
+var loginLogPanel = document.getElementById("loginLogPanel");
+if (tabChangeLog && tabLoginLog) {
+  tabChangeLog.addEventListener("click", function () {
+    changeLogPanel.classList.remove("hidden");
+    loginLogPanel.classList.add("hidden");
+    tabChangeLog.style.background = "#2a3044";
+    tabLoginLog.style.background = "transparent";
+  });
+  tabLoginLog.addEventListener("click", function () {
+    changeLogPanel.classList.add("hidden");
+    loginLogPanel.classList.remove("hidden");
+    tabLoginLog.style.background = "#2a3044";
+    tabChangeLog.style.background = "transparent";
+  });
+}
 
 // 관리자 모드 제목 더블클릭/더블탭 시 변경 로그 화면으로 이동
 var adminTitle = document.getElementById("adminTitle");

@@ -117,14 +117,27 @@
             <div class="step-title">변경 로그</div>
             <button id="backFromChangelog" class="btn-primary">관리자 모드로 돌아가기</button>
 
-            <h3 style="margin-top: 24px; color: #9aa9ff; font-size: 1.3rem;">📋 최근 변경 로그</h3>
-            <div id="changeLogView" class="admin-data-table" style="max-height: 500px; overflow-y: auto;"></div>
+            <!-- 탭 버튼 -->
+            <div id="logTabs" style="display: flex; gap: 0; margin-top: 20px; border-bottom: 2px solid #2a3044;">
+                <button id="tabChangeLog" class="log-tab active" style="flex: 1; padding: 12px; background: #2a3044; color: #9aa9ff; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">📋 최근 변경 로그</button>
+                <button id="tabLoginLog" class="log-tab" style="flex: 1; padding: 12px; background: transparent; color: #6cb4d8; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">👤 로그인 기록</button>
+            </div>
+
+            <!-- 변경 로그 내용 -->
+            <div id="changeLogPanel" style="max-height: 60vh; overflow-y: auto;">
+                <div id="changeLogView" class="admin-data-table"></div>
+            </div>
+
+            <!-- 로그인 기록 내용 -->
+            <div id="loginLogPanel" class="hidden" style="max-height: 60vh; overflow-y: auto;">
+                <div id="loginLogTable" class="admin-data-table"></div>
+            </div>
         </section>
 
-        <!-- 로그인 기록 팝업 (변경 로그 화면 왼쪽) -->
+        <!-- 기존 로그인 기록 팝업 유지 (데스크탑용) -->
         <div id="loginLogPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
             <h3 style="margin: 0 0 16px; color: #6cb4d8; font-size: 1.3rem; flex-shrink: 0;">👤 로그인 기록</h3>
-            <div id="loginLogTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
+            <div id="loginLogTable2" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
         </div>
 
         <section id="step-user">
@@ -215,6 +228,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=50"></script>
+    <script src="js/script.js?v=51"></script>
 </body>
 </html>
