@@ -2358,6 +2358,8 @@ addItemBtn.addEventListener("click", function () {
   var type = newItemType.value;
   var stock = parseInt(newItemStock.value) || 0;
   var notice = newItemNotice.value.trim();
+  var newItemIcon = document.getElementById("newItemIcon");
+  var icon = newItemIcon ? newItemIcon.value : "";
   if (!name) {
     alert("물품명을 입력해주세요.");
     return;
@@ -2372,7 +2374,8 @@ addItemBtn.addEventListener("click", function () {
     name: name,
     type: type,
     stock: stock,
-    notice: notice || ""
+    notice: notice || "",
+    icon: icon
   });
   saveData(); // 데이터 저장
   addChangeLog("물품 추가", "".concat(name, " (").concat(type, ", \uC7AC\uACE0: ").concat(stock, "\uAC1C) \uCD94\uAC00\uB428"));

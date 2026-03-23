@@ -76,6 +76,29 @@
                 <h3 style="margin-top: 24px; color: #a0f0a0; font-size: 1.3rem;">➕ 새 물품 추가</h3>
                 <div style="margin-top: 16px; padding: 24px 16px; background: #11131c; border-radius: 20px; border: 1px solid #2a3044;">
                     <div class="field">
+                        <label for="newItemIcon">아이콘</label>
+                        <select id="newItemIcon" style="width: 100%; padding: 18px 14px; font-size: 1.3rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none;">
+                            <option value="">선택 안 함</option>
+                            <option value="🌂">🌂 우산</option>
+                            <option value="🔌">🔌 충전기</option>
+                            <option value="🔗">🔗 USB 허브</option>
+                            <option value="💻">💻 노트북/C타입</option>
+                            <option value="🏀">🏀 농구공</option>
+                            <option value="⚽">⚽ 축구공/풋살</option>
+                            <option value="🔴">🔴 피구공</option>
+                            <option value="🛏️">🛏️ 담요</option>
+                            <option value="🔥">🔥 핫팩</option>
+                            <option value="😷">😷 마스크</option>
+                            <option value="📦">📦 기타</option>
+                            <option value="🎧">🎧 이어폰/헤드셋</option>
+                            <option value="🔋">🔋 보조배터리</option>
+                            <option value="📎">📎 문구류</option>
+                            <option value="🧴">🧴 위생용품</option>
+                            <option value="💊">💊 의약품</option>
+                            <option value="🧹">🧹 청소용품</option>
+                        </select>
+                    </div>
+                    <div class="field">
                         <label for="newItemName">물품명</label>
                         <input id="newItemName" type="text" placeholder="예: 우산" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
                     </div>
@@ -230,6 +253,6 @@
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:99999;font-size:14px;';d.textContent='ERROR: '+m+' (line '+l+')';document.body.appendChild(d);};</script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=53"></script>
+    <script src="js/script.js?v=54"></script>
 </body>
 </html>
