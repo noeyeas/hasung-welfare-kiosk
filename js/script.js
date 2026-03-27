@@ -2236,7 +2236,12 @@ function _handleLogoAdmin() {
             if (isValid) {
               showStep("admin");
             } else {
-              alert("비밀번호가 틀렸습니다.");
+              showConfirm({
+                icon: '🔒',
+                title: '접근 거부',
+                message: '비밀번호가 틀렸습니다.',
+                autoClose: 2000
+              });
             }
             adminEntering = false;
           });
@@ -2326,7 +2331,12 @@ function _handleAdminTitleTap() {
             if (isValid) {
               showStep("changelog");
             } else {
-              alert("비밀번호가 틀렸습니다.");
+              showConfirm({
+                icon: '🔒',
+                title: '접근 거부',
+                message: '비밀번호가 틀렸습니다.',
+                autoClose: 2000
+              });
             }
             adminTitleEntering = false;
           });
@@ -2393,7 +2403,12 @@ if (exportBackupBtn) {
             _context18.n = 4;
             break;
           }
-          alert("비밀번호가 틀렸습니다.");
+          showConfirm({
+            icon: '🔒',
+            title: '접근 거부',
+            message: '비밀번호가 틀렸습니다.',
+            autoClose: 2000
+          });
           return _context18.a(2);
         case 4:
           _context18.n = 5;
@@ -2430,7 +2445,12 @@ if (importBackupBtn) {
             _context19.n = 4;
             break;
           }
-          alert("비밀번호가 틀렸습니다.");
+          showConfirm({
+            icon: '🔒',
+            title: '접근 거부',
+            message: '비밀번호가 틀렸습니다.',
+            autoClose: 2000
+          });
           return _context19.a(2);
         case 4:
           if (confirm("⚠️ 정말 백업 파일에서 데이터를 복원하시겠습니까?\n현재 데이터가 모두 덮어씌워집니다.")) {
@@ -2549,7 +2569,12 @@ window.forceReturn = /*#__PURE__*/function () {
             _context20.n = 5;
             break;
           }
-          alert("비밀번호가 틀렸습니다.");
+          showConfirm({
+            icon: '🔒',
+            title: '접근 거부',
+            message: '비밀번호가 틀렸습니다.',
+            autoClose: 2000
+          });
           return _context20.a(2);
         case 5:
           if (confirm("\"".concat(record.name, "\"\uB2D8\uC758 \"").concat(record.itemName, "\" \uAC15\uC81C \uBC18\uB0A9\uC744 \uCC98\uB9AC\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
