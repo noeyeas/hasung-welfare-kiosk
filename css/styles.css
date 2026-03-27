@@ -177,7 +177,7 @@ input:focus {
     flex-direction: column;
     justify-content: center;
     flex: 1;
-    gap: 24px;
+    gap: 16px;
     max-width: 500px;
     margin: 0 auto;
     width: 100%;
@@ -743,6 +743,14 @@ input:focus {
         bottom: auto !important;
         width: 100% !important;
         margin-top: 16px;
+    }
+    #step-user {
+        height: auto !important;
+        overflow-y: auto !important;
+    }
+    #step-user form {
+        gap: 12px !important;
+        flex: none !important;
     }
     #userInfoPopup {
         position: fixed !important;

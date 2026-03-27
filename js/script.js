@@ -1703,6 +1703,20 @@ var renderLogs = function renderLogs() {
   }).join("");
 };
 
+// 키보드 올라올 때 입력 필드 보이게 스크롤
+var formInputs = document.querySelectorAll('#user-form input');
+for (var i = 0; i < formInputs.length; i++) {
+  formInputs[i].addEventListener('focus', function () {
+    var self = this;
+    setTimeout(function () {
+      self.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth'
+      });
+    }, 300);
+  });
+}
+
 // 개인정보 동의 팝업
 var privacyConsent = document.getElementById("privacyConsent");
 var privacyError = document.getElementById("privacyError");
