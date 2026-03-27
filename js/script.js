@@ -1,79 +1,3 @@
-// ES5 Polyfills for Chrome 50 / Samsung Internet 4.0
-if (!String.prototype.padStart) {
-  String.prototype.padStart = function(targetLength, padString) {
-    targetLength = targetLength >> 0;
-    padString = String(typeof padString !== 'undefined' ? padString : ' ');
-    if (this.length >= targetLength) return String(this);
-    targetLength = targetLength - this.length;
-    if (targetLength > padString.length) {
-      padString += padString.repeat(Math.ceil(targetLength / padString.length));
-    }
-    return padString.slice(0, targetLength) + String(this);
-  };
-}
-if (!String.prototype.repeat) {
-  String.prototype.repeat = function(count) {
-    var str = '' + this;
-    count = +count;
-    if (count < 0 || count === Infinity) throw new RangeError('Invalid count value');
-    count = Math.floor(count);
-    if (str.length === 0 || count === 0) return '';
-    var result = '';
-    while (count > 0) {
-      if (count & 1) result += str;
-      count >>= 1;
-      if (count) str += str;
-    }
-    return result;
-  };
-}
-if (!Array.prototype.includes) {
-  Array.prototype.includes = function(searchElement, fromIndex) {
-    var o = Object(this);
-    var len = o.length >>> 0;
-    if (len === 0) return false;
-    var n = fromIndex | 0;
-    var k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
-    while (k < len) {
-      if (o[k] === searchElement) return true;
-      k++;
-    }
-    return false;
-  };
-}
-if (!String.prototype.includes) {
-  String.prototype.includes = function(search, start) {
-    if (typeof start !== 'number') start = 0;
-    if (start + search.length > this.length) return false;
-    return this.indexOf(search, start) !== -1;
-  };
-}
-if (!Array.prototype.find) {
-  Array.prototype.find = function(predicate) {
-    for (var i = 0; i < this.length; i++) {
-      if (predicate(this[i], i, this)) return this[i];
-    }
-    return undefined;
-  };
-}
-if (!Array.prototype.findIndex) {
-  Array.prototype.findIndex = function(predicate) {
-    for (var i = 0; i < this.length; i++) {
-      if (predicate(this[i], i, this)) return i;
-    }
-    return -1;
-  };
-}
-if (!Array.from) {
-  Array.from = function(arrayLike) {
-    var result = [];
-    for (var i = 0; i < arrayLike.length; i++) {
-      result.push(arrayLike[i]);
-    }
-    return result;
-  };
-}
-
 "use strict";
 
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -1778,6 +1702,29 @@ var renderLogs = function renderLogs() {
     return "\n                <li>\n                    <strong>".concat(log.user.name, "</strong> \xB7 ").concat(log.item, " (").concat(log.action, ")<br>\n                    ").concat(log.message, "<br>\n                    ").concat(log.time, "\n                </li>\n            ");
   }).join("");
 };
+
+// 개인정보 동의 팝업
+var privacyConsent = document.getElementById("privacyConsent");
+var privacyError = document.getElementById("privacyError");
+var privacyDetail = document.getElementById("privacyDetail");
+var privacyModal = document.getElementById("privacyModal");
+var privacyModalClose = document.getElementById("privacyModalClose");
+if (privacyDetail) {
+  privacyDetail.addEventListener("click", function (e) {
+    e.preventDefault();
+    if (privacyModal) privacyModal.style.display = "flex";
+  });
+}
+if (privacyModalClose) {
+  privacyModalClose.addEventListener("click", function () {
+    if (privacyModal) privacyModal.style.display = "none";
+  });
+}
+if (privacyModal) {
+  privacyModal.addEventListener("click", function (e) {
+    if (e.target === privacyModal) privacyModal.style.display = "none";
+  });
+}
 form.addEventListener("submit", function (event) {
   event.preventDefault();
   selectionResult.classList.add("hidden");
@@ -1819,6 +1766,14 @@ form.addEventListener("submit", function (event) {
     isValid = false;
   } else {
     setError(phoneError, "");
+  }
+
+  // 개인정보 동의 검증
+  if (privacyConsent && !privacyConsent.checked) {
+    setError(privacyError, "개인정보 수집·이용에 동의해주세요.");
+    isValid = false;
+  } else if (privacyError) {
+    setError(privacyError, "");
   }
   if (!isValid) {
     return;
