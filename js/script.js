@@ -1987,6 +1987,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             message: "\uBC18\uB0A9 \uC608\uC815\uC77C ".concat(dueLabel),
             time: formatTime(new Date())
           });
+          addChangeLog("물품 대여", "".concat(currentUser.name, "(").concat(currentUser.studentId, ") - ").concat(item.name, " \uB300\uC5EC (\uBC18\uB0A9: ").concat(dueLabel, ")"));
           return _context15.a(2);
         case 8:
           if (!(action === "return")) {
@@ -2027,6 +2028,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             message: "정상 반납",
             time: formatTime(new Date())
           });
+          addChangeLog("물품 반납", "".concat(currentUser.name, "(").concat(currentUser.studentId, ") - ").concat(item.name, " \uBC18\uB0A9"));
           return _context15.a(2);
         case 10:
           if (!(action === "consume")) {
@@ -2057,6 +2059,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             message: "소모품은 반납 불필요",
             time: formatTime(new Date())
           });
+          addChangeLog("소모품 수령", "".concat(currentUser.name, "(").concat(currentUser.studentId, ") - ").concat(item.name, " \uC218\uB839"));
         case 12:
           return _context15.a(2);
       }
