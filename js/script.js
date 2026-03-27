@@ -1713,7 +1713,13 @@ for (var i = 0; i < formInputs.length; i++) {
         block: 'center',
         behavior: 'smooth'
       });
-    }, 300);
+    }, 500);
+    setTimeout(function () {
+      self.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth'
+      });
+    }, 1000);
   });
 }
 

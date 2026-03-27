@@ -714,11 +714,15 @@ input:focus {
         height: auto !important;
         max-height: none !important;
         min-height: 100vh;
+        position: static !important;
     }
     body {
         display: flex !important;
         justify-content: flex-end !important;
         align-items: flex-start !important;
+    }
+    .kiosk {
+        overflow-y: auto !important;
     }
     .cctv-modal {
         left: 10px !important;
