@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=67">
+    <link rel="stylesheet" href="css/styles.css?v=68">
 </head>
 <body>
     <!-- 브랜드 로고 -->
@@ -66,11 +66,7 @@
                 <button id="viewOverdue" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #ff5c5c, #e53e3e);">연체자 목록 보기</button>
             </div>
 
-            <!-- 데이터 백업 섹션 -->
-            <div style="display: flex; gap: 14px; margin-bottom: 16px;">
-                <button id="exportBackupBtn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #2ecc71, #27ae60);">💾 백업 내보내기</button>
-                <button id="importBackupBtn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #3498db, #2980b9);">📂 백업 불러오기</button>
-            </div>
+            <!-- 데이터 백업 섹션은 추가 관리자 모드(변경 로그)로 이동 -->
 
             <div>
                 <!-- 물품 재고 현황 및 새 물품 추가 -->
@@ -122,9 +118,13 @@
         </section>
 
         <section id="step-changelog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0c12; z-index: 2000; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap;">
                 <div class="step-title" style="margin: 0; white-space: nowrap; font-size: 1.3rem;">변경 로그</div>
-                <button id="backFromChangelog" class="btn-primary" style="padding: 10px 20px; font-size: 0.95rem;">관리자 모드로 돌아가기</button>
+                <div style="display: flex; gap: 10px;">
+                    <button id="exportBackupBtn" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem; background: linear-gradient(135deg, #2ecc71, #27ae60);">💾 백업 내보내기</button>
+                    <button id="importBackupBtn" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem; background: linear-gradient(135deg, #3498db, #2980b9);">📂 백업 불러오기</button>
+                    <button id="backFromChangelog" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem;">관리자 모드로 돌아가기</button>
+                </div>
             </div>
 
             <!-- 탭 버튼 -->
@@ -268,6 +268,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=67"></script>
+    <script src="js/script.js?v=68"></script>
 </body>
 </html>
