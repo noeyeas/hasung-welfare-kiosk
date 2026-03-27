@@ -400,13 +400,23 @@ var exportBackup = /*#__PURE__*/function () {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           addChangeLog("백업 내보내기", "\uBC31\uC5C5 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC: ".concat(filename));
-          alert("\u2705 \uBC31\uC5C5\uC774 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4!\n\uD30C\uC77C\uBA85: ".concat(filename));
+          showConfirm({
+            icon: '✅',
+            title: '백업 완료',
+            message: '백업 파일이 다운로드되었습니다.',
+            autoClose: 2000
+          });
           return _context2.a(2, true);
         case 5:
           _context2.p = 5;
           _t7 = _context2.v;
           console.error('Backup export error:', _t7);
-          alert('❌ 백업 내보내기에 실패했습니다.');
+          showConfirm({
+            icon: '❌',
+            title: '백업 실패',
+            message: '백업 내보내기에 실패했습니다.',
+            autoClose: 2000
+          });
           return _context2.a(2, false);
       }
     }, _callee2, null, [[0, 5]]);
@@ -1930,7 +1940,12 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             _context16.n = 3;
             break;
           }
-          alert("먼저 학생 정보를 입력해주세요.");
+          showConfirm({
+            icon: '⚠️',
+            title: '알림',
+            message: '먼저 학생 정보를 입력해주세요.',
+            autoClose: 2000
+          });
           return _context16.a(2);
         case 3:
           if (!((action === "borrow" || action === "consume") && item.stock <= 0)) {
@@ -2484,7 +2499,12 @@ if (importBackupBtn) {
           return selectAndImportBackup();
         case 6:
           result = _context20.v;
-          alert(result.message);
+          showConfirm({
+            icon: 'ℹ️',
+            title: '알림',
+            message: result.message,
+            autoClose: 2000
+          });
           if (result.success) {
             // UI 업데이트
             renderAdminData();
@@ -2504,13 +2524,23 @@ addItemBtn.addEventListener("click", function () {
   var newItemIcon = document.getElementById("newItemIcon");
   var icon = newItemIcon ? newItemIcon.value : "";
   if (!name) {
-    alert("물품명을 입력해주세요.");
+    showConfirm({
+      icon: '⚠️',
+      title: '알림',
+      message: '물품명을 입력해주세요.',
+      autoClose: 2000
+    });
     return;
   }
   if (items.some(function (item) {
     return item.name === name;
   })) {
-    alert("이미 존재하는 물품명입니다.");
+    showConfirm({
+      icon: '⚠️',
+      title: '알림',
+      message: '이미 존재하는 물품명입니다.',
+      autoClose: 2000
+    });
     return;
   }
   items.push({
@@ -2531,7 +2561,12 @@ addItemBtn.addEventListener("click", function () {
   // 관리자 화면과 사용자 화면 모두 업데이트
   renderAdminData();
   renderItems();
-  alert("".concat(name, " \uBB3C\uD488\uC774 \uCD94\uAC00\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
+  showConfirm({
+    icon: '✅',
+    title: '물품 추가',
+    message: name + ' 물품이 추가되었습니다.',
+    autoClose: 2000
+  });
 });
 
 // 재고 수정 함수 (전역 함수로 만들기 위해 window 객체에 할당)
@@ -2568,7 +2603,12 @@ window.forceReturn = /*#__PURE__*/function () {
             _context21.n = 1;
             break;
           }
-          alert("대여 기록을 찾을 수 없습니다.");
+          showConfirm({
+            icon: '⚠️',
+            title: '알림',
+            message: '대여 기록을 찾을 수 없습니다.',
+            autoClose: 2000
+          });
           return _context21.a(2);
         case 1:
           record = borrowedRecords[recordIndex]; // 중요 작업: 비밀번호 재확인
@@ -2638,7 +2678,12 @@ window.forceReturn = /*#__PURE__*/function () {
           renderAdminData();
           renderOverdueData();
           renderItems();
-          alert("".concat(record.itemName, " \uAC15\uC81C \uBC18\uB0A9\uC774 \uCC98\uB9AC\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
+          showConfirm({
+            icon: '✅',
+            title: '강제 반납',
+            message: record.itemName + ' 강제 반납이 처리되었습니다.',
+            autoClose: 2000
+          });
         case 7:
           return _context21.a(2);
       }
@@ -2705,7 +2750,12 @@ window.deleteItem = /*#__PURE__*/function () {
           addChangeLog("물품 삭제", "".concat(item.name, " \uC0AD\uC81C\uB428"));
           renderAdminData();
           renderItems();
-          alert("".concat(item.name, " \uBB3C\uD488\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4."));
+          showConfirm({
+            icon: '✅',
+            title: '물품 삭제',
+            message: item.name + ' 물품이 삭제되었습니다.',
+            autoClose: 2000
+          });
         case 3:
           return _context22.a(2);
       }
