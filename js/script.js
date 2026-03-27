@@ -90,12 +90,13 @@ function showPasswordPrompt(title) {
 // Google Sheets API 설정
 // ========================================
 var API_URL = 'https://script.google.com/macros/s/AKfycbyXx677O7yLWcUhIAUDfhJGmW0UqSgx8KUAIsKA9wCRqPOAfdaL7ToPovkKGECW4gJ5ig/exec';
+var API_KEY = 'HS_KIOSK_2024_SEC_TOKEN';
 
 // API GET 요청 헬퍼
 function apiGet(action, callback) {
   try {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', API_URL + '?action=' + encodeURIComponent(action), true);
+    xhr.open('GET', API_URL + '?action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(API_KEY), true);
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
@@ -152,7 +153,10 @@ function apiPost(data, callback) {
     xhr.ontimeout = function () {
       if (callback) callback(new Error('Timeout'), null);
     };
-    xhr.send(JSON.stringify(data));
+    var payload = Object.assign({}, data, {
+      key: API_KEY
+    });
+    xhr.send(JSON.stringify(payload));
   } catch (e) {
     if (callback) callback(e, null);
   }
@@ -679,9 +683,9 @@ var hashPassword = /*#__PURE__*/function () {
   };
 }();
 
-// 관리자 비밀번호 해시 (SHA-256)
+// 관리자 비밀번호 해시 (SHA-256) - 비밀번호 원문 노출 방지
 var ADMIN_PASSWORD_HASH = "de6d045537291b8c8762940084f51bd3d02055d5cbc250e6d2fc6ddb09d88325";
-var ADMIN_PASSWORD_SIMPLE_HASH = simpleHash("041104");
+var ADMIN_PASSWORD_SIMPLE_HASH = "54dc6828";
 
 // 비밀번호 검증 함수
 var verifyAdminPassword = /*#__PURE__*/function () {
@@ -703,8 +707,9 @@ var verifyAdminPassword = /*#__PURE__*/function () {
   };
 }();
 
-// 추가 관리자 모드 비밀번호
-var SUPER_ADMIN_SIMPLE_HASH = simpleHash("5894165*#");
+// 추가 관리자 모드 비밀번호 해시 (원문 노출 방지)
+var SUPER_ADMIN_SHA256_HASH = "a3cdb037448fc2bfde78fde5f165480c8ba82451899fa593de0ac2b155a66199";
+var SUPER_ADMIN_SIMPLE_HASH = "-71c82a55";
 var verifySuperAdminPassword = /*#__PURE__*/function () {
   var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(inputPassword) {
     var inputHash;
@@ -715,7 +720,7 @@ var verifySuperAdminPassword = /*#__PURE__*/function () {
           return hashPassword(inputPassword);
         case 1:
           inputHash = _context9.v;
-          return _context9.a(2, inputHash === SUPER_ADMIN_SIMPLE_HASH || simpleHash(inputPassword) === SUPER_ADMIN_SIMPLE_HASH);
+          return _context9.a(2, inputHash === SUPER_ADMIN_SHA256_HASH || inputHash === SUPER_ADMIN_SIMPLE_HASH);
       }
     }, _callee9);
   }));
@@ -1278,7 +1283,7 @@ var renderAdminData = function renderAdminData() {
 
   // 1. 재고 현황 테이블 렌더링
   var stockHtml = "\n                <table id=\"stockTable\" style=\"table-layout: fixed;\">\n                    <colgroup>\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 20%;\">\n                        <col style=\"width: 12%;\">\n                        <col style=\"width: 25%;\">\n                        <col style=\"width: 20%;\">\n                        <col style=\"width: 15%;\">\n                    </colgroup>\n                    <tr><th>\uC21C\uC11C</th><th>\uBB3C\uD488\uBA85</th><th>\uAD6C\uBD84</th><th>\uC7AC\uACE0</th><th>\uC8FC\uC758\uC0AC\uD56D</th><th>\uAD00\uB9AC</th></tr>\n                    ".concat(items.map(function (item, index) {
-    return "\n                        <tr draggable=\"true\" data-index=\"".concat(index, "\" style=\"cursor: move;\">\n                            <td style=\"text-align: center;\">\n                                <button onclick=\"moveItem(").concat(index, ", -1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === 0 ? 'disabled' : '', ">\u25B2</button>\n                                <button onclick=\"moveItem(").concat(index, ", 1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === items.length - 1 ? 'disabled' : '', ">\u25BC</button>\n                            </td>\n                            <td>").concat(item.name, "</td>\n                            <td>").concat(item.type, "</td>\n                            <td style=\"padding: 14px 20px;\">\n                                <div style=\"display: flex; align-items: center; gap: 12px; justify-content: center;\">\n                                    <button onclick=\"updateStock(").concat(index, ", -1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">-</button>\n                                    <span style=\"font-size: 1.05rem;\">").concat(item.stock, "\uAC1C</span>\n                                    <button onclick=\"updateStock(").concat(index, ", 1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">+</button>\n                                </div>\n                            </td>\n                            <td style=\"font-size: 0.8rem; color: #9ba3bf;\">").concat(item.notice || '-', "</td>\n                            <td>\n                                <button onclick=\"deleteItem(").concat(index, ")\" style=\"padding: 10px 16px; border-radius: 10px; border: none; background: #ff5c5c; color: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 600;\">\uC0AD\uC81C</button>\n                            </td>\n                        </tr>\n                    ");
+    return "\n                        <tr draggable=\"true\" data-index=\"".concat(index, "\" style=\"cursor: move;\">\n                            <td style=\"text-align: center;\">\n                                <button onclick=\"moveItem(").concat(index, ", -1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === 0 ? 'disabled' : '', ">\u25B2</button>\n                                <button onclick=\"moveItem(").concat(index, ", 1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === items.length - 1 ? 'disabled' : '', ">\u25BC</button>\n                            </td>\n                            <td>").concat(escapeHtml(item.name), "</td>\n                            <td>").concat(escapeHtml(item.type), "</td>\n                            <td style=\"padding: 14px 20px;\">\n                                <div style=\"display: flex; align-items: center; gap: 12px; justify-content: center;\">\n                                    <button onclick=\"updateStock(").concat(index, ", -1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">-</button>\n                                    <span style=\"font-size: 1.05rem;\">").concat(parseInt(item.stock) || 0, "\uAC1C</span>\n                                    <button onclick=\"updateStock(").concat(index, ", 1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">+</button>\n                                </div>\n                            </td>\n                            <td style=\"font-size: 0.8rem; color: #9ba3bf;\">").concat(escapeHtml(item.notice || '-'), "</td>\n                            <td>\n                                <button onclick=\"deleteItem(").concat(index, ")\" style=\"padding: 10px 16px; border-radius: 10px; border: none; background: #ff5c5c; color: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 600;\">\uC0AD\uC81C</button>\n                            </td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   adminStockTable.innerHTML = stockHtml;
 
@@ -1353,8 +1358,8 @@ var renderAdminData = function renderAdminData() {
   }
   var borrowedHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th></tr>\n                    ".concat(borrowedRecords.map(function (record) {
     // 18:00 제거
-    var dueLabelWithoutTime = record.dueLabel.replace(' 18:00', '');
-    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(record.itemName, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.phone, "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; font-size: 0.9rem;\">").concat(dueLabelWithoutTime, "</td>\n                        </tr>\n                    ");
+    var dueLabelWithoutTime = (record.dueLabel || '').replace(' 18:00', '');
+    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(escapeHtml(record.itemName), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.phone), "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; font-size: 0.9rem;\">").concat(escapeHtml(dueLabelWithoutTime), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   adminBorrowedTable.innerHTML = borrowedHtml;
   // 모바일 대여현황 패널에도 동일 내용 복사
@@ -1376,7 +1381,7 @@ var renderChangeLog = function renderChangeLog() {
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
   var logHtml = "\n                <table>\n                    <tr><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
-    return "\n                        <tr>\n                            <td style=\"font-size: 0.8rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(log.action, "</td>\n                            <td style=\"font-size: 0.85rem;\">").concat(log.details, "</td>\n                        </tr>\n                    ");
+    return "\n                        <tr>\n                            <td style=\"font-size: 0.8rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(escapeHtml(log.action), "</td>\n                            <td style=\"font-size: 0.85rem;\">").concat(escapeHtml(log.details), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   adminChangeLog.innerHTML = logHtml;
 };
@@ -1395,7 +1400,7 @@ var renderChangeLogView = function renderChangeLogView() {
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
   var logHtml = "\n                <table>\n                    <tr><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
-    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(log.action, "</td>\n                            <td style=\"font-size: 0.9rem;\">").concat(log.details, "</td>\n                        </tr>\n                    ");
+    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(escapeHtml(log.action), "</td>\n                            <td style=\"font-size: 0.9rem;\">").concat(escapeHtml(log.details), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   changeLogView.innerHTML = logHtml;
 };
@@ -1416,7 +1421,7 @@ var renderLoginLog = function renderLoginLog() {
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
   var logHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uC2DC\uAC04</th><th>\uC774\uB984</th><th>\uD559\uBC88</th><th>\uC5F0\uB77D\uCC98</th></tr>\n                    ".concat(recentLogs.map(function (log) {
-    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(log.phone, "</td>\n                        </tr>\n                    ");
+    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.phone), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   loginLogTable.innerHTML = logHtml;
   // 데스크탑 팝업에도 동일 내용 복사
@@ -1456,7 +1461,11 @@ var renderOverdueData = function renderOverdueData() {
     var recordIndex = borrowedRecords.findIndex(function (r) {
       return String(r.studentId) === String(record.studentId) && r.itemName === record.itemName && r.dueDate === record.dueDate;
     });
-    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(record.itemName, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.phone, "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; min-width: 120px;\">").concat(record.dueLabel, "</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;\">").concat(overdueDays, "\uC77C</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;\">").concat(fine.toLocaleString(), "\uC6D0</td>\n                            <td style=\"white-space: nowrap;\">\n                                <button onclick=\"forceReturn('").concat(record.studentId, "', '").concat(record.itemName, "', '").concat(record.dueDate, "')\" style=\"padding: 8px 16px; border-radius: 10px; border: none; background: #4e5fe5; color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600;\">\uAC15\uC81C \uBC18\uB0A9</button>\n                            </td>\n                        </tr>\n                    ");
+    // onclick 인젝션 방지: 값을 이스케이프하여 안전하게 전달
+    var safeStudentId = escapeHtml(String(record.studentId)).replace(/'/g, "\\'");
+    var safeItemName = escapeHtml(record.itemName).replace(/'/g, "\\'");
+    var safeDueDate = escapeHtml(record.dueDate).replace(/'/g, "\\'");
+    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(escapeHtml(record.itemName), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(String(record.studentId)), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.phone), "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; min-width: 120px;\">").concat(escapeHtml(record.dueLabel), "</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;\">").concat(parseInt(overdueDays) || 0, "\uC77C</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;\">").concat(parseInt(fine) ? fine.toLocaleString() : '0', "\uC6D0</td>\n                            <td style=\"white-space: nowrap;\">\n                                <button onclick=\"forceReturn('").concat(safeStudentId, "', '").concat(safeItemName, "', '").concat(safeDueDate, "')\" style=\"padding: 8px 16px; border-radius: 10px; border: none; background: #4e5fe5; color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600;\">\uAC15\uC81C \uBC18\uB0A9</button>\n                            </td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   overdueTable.innerHTML = overdueHtml;
 };
@@ -1569,14 +1578,14 @@ var renderItems = function renderItems() {
     });
   }
   if (filteredItems.length === 0) {
-    var message = searchQuery ? "\"".concat(searchQuery, "\"\uC5D0 \uB300\uD55C \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.") : currentFilter === 'borrow' ? '대여 가능한 물품이 없습니다.' : currentFilter === 'consume' ? '소모품이 없습니다.' : '물품이 없습니다.';
+    var message = searchQuery ? "\"".concat(escapeHtml(searchQuery), "\"\uC5D0 \uB300\uD55C \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.") : currentFilter === 'borrow' ? '대여 가능한 물품이 없습니다.' : currentFilter === 'consume' ? '소모품이 없습니다.' : '물품이 없습니다.';
     itemGrid.innerHTML = "<div style=\"text-align: center; padding: 40px; color: #9ba3bf; font-size: 1.1rem;\">".concat(message, "</div>");
     return;
   }
   itemGrid.innerHTML = filteredItems.map(function (item, index) {
     // 원본 배열에서의 인덱스 찾기
     var originalIndex = items.indexOf(item);
-    return "\n                    <div class=\"item-card\">\n                        ".concat(item.icon ? "<span style=\"font-size: 2.5rem; flex-shrink: 0;\">".concat(item.icon, "</span>") : item.image ? "<img src=\"".concat(item.image, "\" alt=\"").concat(item.name, "\" style=\"width: 50px; height: 50px; object-fit: contain; flex-shrink: 0;\">") : '', "\n                        <div class=\"item-card-info\">\n                            <strong>").concat(item.name, "</strong>\n                            <small>").concat(item.type, " \xB7 \uC7AC\uACE0 ").concat(item.stock, "\uAC1C</small>\n                        </div>\n                        <div class=\"item-card-actions\">\n                            ").concat(item.type === "대여" ? "\n                                <button class=\"borrow ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"borrow\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '대여하기', "\n                                </button>\n                                <button class=\"secondary\" data-action=\"return\" data-index=\"").concat(originalIndex, "\">\n                                    \uBC18\uB0A9\uD558\uAE30\n                                </button>\n                            ") : "\n                                <button class=\"consume ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"consume\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '수령하기', "\n                                </button>\n                            "), "\n                        </div>\n                    </div>\n                ");
+    return "\n                    <div class=\"item-card\">\n                        ".concat(item.icon ? "<span style=\"font-size: 2.5rem; flex-shrink: 0;\">".concat(escapeHtml(item.icon), "</span>") : item.image ? "<img src=\"".concat(escapeHtml(item.image), "\" alt=\"").concat(escapeHtml(item.name), "\" style=\"width: 50px; height: 50px; object-fit: contain; flex-shrink: 0;\">") : '', "\n                        <div class=\"item-card-info\">\n                            <strong>").concat(escapeHtml(item.name), "</strong>\n                            <small>").concat(escapeHtml(item.type), " \xB7 \uC7AC\uACE0 ").concat(parseInt(item.stock) || 0, "\uAC1C</small>\n                        </div>\n                        <div class=\"item-card-actions\">\n                            ").concat(item.type === "대여" ? "\n                                <button class=\"borrow ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"borrow\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '대여하기', "\n                                </button>\n                                <button class=\"secondary\" data-action=\"return\" data-index=\"").concat(originalIndex, "\">\n                                    \uBC18\uB0A9\uD558\uAE30\n                                </button>\n                            ") : "\n                                <button class=\"consume ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"consume\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '수령하기', "\n                                </button>\n                            "), "\n                        </div>\n                    </div>\n                ");
   }).join("");
   // Twemoji로 이모지를 이미지로 변환 (구형 브라우저 지원)
   if (typeof twemoji !== 'undefined') {
@@ -1790,7 +1799,7 @@ var renderLogs = function renderLogs() {
     return;
   }
   logList.innerHTML = transactionLog.map(function (log) {
-    return "\n                <li>\n                    <strong>".concat(log.user.name, "</strong> \xB7 ").concat(log.item, " (").concat(log.action, ")<br>\n                    ").concat(log.message, "<br>\n                    ").concat(log.time, "\n                </li>\n            ");
+    return "\n                <li>\n                    <strong>".concat(escapeHtml(log.user.name), "</strong> \xB7 ").concat(escapeHtml(log.item), " (").concat(escapeHtml(log.action), ")<br>\n                    ").concat(escapeHtml(log.message), "<br>\n                    ").concat(escapeHtml(log.time), "\n                </li>\n            ");
   }).join("");
 };
 
@@ -2517,12 +2526,12 @@ if (importBackupBtn) {
   })));
 }
 addItemBtn.addEventListener("click", function () {
-  var name = newItemName.value.trim();
+  var name = newItemName.value.trim().replace(/[<>"'&]/g, '');
   var type = newItemType.value;
-  var stock = parseInt(newItemStock.value) || 0;
-  var notice = newItemNotice.value.trim();
+  var stock = Math.max(0, Math.min(9999, parseInt(newItemStock.value) || 0));
+  var notice = newItemNotice.value.trim().replace(/[<>"'&]/g, '');
   var newItemIcon = document.getElementById("newItemIcon");
-  var icon = newItemIcon ? newItemIcon.value : "";
+  var icon = newItemIcon ? newItemIcon.value.trim() : "";
   if (!name) {
     showConfirm({
       icon: '⚠️',

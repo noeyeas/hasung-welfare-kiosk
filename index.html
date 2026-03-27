@@ -11,6 +11,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- 보안: 클릭재킹 방지 -->
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <!-- 보안: Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://cdn.jsdelivr.net https://twemoji.maxcdn.com data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
@@ -19,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=66">
+    <link rel="stylesheet" href="css/styles.css?v=67">
 </head>
 <body>
     <!-- 브랜드 로고 -->
@@ -264,6 +268,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=66"></script>
+    <script src="js/script.js?v=67"></script>
 </body>
 </html>
