@@ -1423,7 +1423,7 @@ var renderOverdueData = function renderOverdueData() {
     var fine = calculateFine(record.dueDate);
     // borrowedRecords에서 해당 기록의 인덱스 찾기
     var recordIndex = borrowedRecords.findIndex(function (r) {
-      return r.studentId === record.studentId && r.itemName === record.itemName && r.dueDate === record.dueDate;
+      return String(r.studentId) === String(record.studentId) && r.itemName === record.itemName && r.dueDate === record.dueDate;
     });
     return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(record.itemName, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.studentId, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.name, "</td>\n                            <td style=\"white-space: nowrap;\">").concat(record.phone, "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; min-width: 120px;\">").concat(record.dueLabel, "</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;\">").concat(overdueDays, "\uC77C</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;\">").concat(fine.toLocaleString(), "\uC6D0</td>\n                            <td style=\"white-space: nowrap;\">\n                                <button onclick=\"forceReturn('").concat(record.studentId, "', '").concat(record.itemName, "', '").concat(record.dueDate, "')\" style=\"padding: 8px 16px; border-radius: 10px; border: none; background: #4e5fe5; color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600;\">\uAC15\uC81C \uBC18\uB0A9</button>\n                            </td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
@@ -1931,7 +1931,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
         case 5:
           // 중복 대여 방지: 이미 빌린 물품인지 확인
           alreadyBorrowed = borrowedRecords.some(function (record) {
-            return record.studentId === currentUser.studentId && record.itemName === item.name;
+            return String(record.studentId) === String(currentUser.studentId) && record.itemName === item.name;
           });
           if (!alreadyBorrowed) {
             _context15.n = 6;
@@ -1995,7 +1995,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             break;
           }
           borrowedIndex = borrowedRecords.findIndex(function (record) {
-            return record.studentId === currentUser.studentId && record.itemName === item.name;
+            return String(record.studentId) === String(currentUser.studentId) && record.itemName === item.name;
           });
           if (!(borrowedIndex === -1)) {
             _context15.n = 9;
@@ -2076,7 +2076,7 @@ editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__
       case 0:
         // 현재 사용자의 대여 기록 확인
         userBorrowed = borrowedRecords.filter(function (r) {
-          return r.studentId === (currentUser && currentUser.studentId);
+          return String(r.studentId) === String(currentUser && currentUser.studentId);
         });
         if (!(userBorrowed.length > 0)) {
           _context16.n = 2;
@@ -2120,7 +2120,7 @@ finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/
       case 0:
         // 현재 사용자의 대여 기록 확인
         userBorrowed = borrowedRecords.filter(function (r) {
-          return r.studentId === (currentUser && currentUser.studentId);
+          return String(r.studentId) === String(currentUser && currentUser.studentId);
         }); // 요약 확인 메시지 생성
         summaryMsg = '';
         if (userBorrowed.length > 0) {
@@ -2521,7 +2521,7 @@ window.forceReturn = /*#__PURE__*/function () {
         case 0:
           // borrowedRecords에서 해당 기록 찾기
           recordIndex = borrowedRecords.findIndex(function (r) {
-            return r.studentId === studentId && r.itemName === itemName && r.dueDate === dueDate;
+            return String(r.studentId) === String(studentId) && r.itemName === itemName && r.dueDate === dueDate;
           });
           if (!(recordIndex === -1)) {
             _context20.n = 1;
