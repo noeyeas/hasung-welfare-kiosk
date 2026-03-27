@@ -1161,7 +1161,27 @@ var showStep = function showStep(step) {
     if (mobileBorrowedPanel && window.innerWidth <= 1400) {
       mobileBorrowedPanel.classList.remove("hidden");
     }
-    renderAdminData(); // 관리자 모드 진입 시 데이터 렌더링
+    // 관리자 모드 진입 시 API에서 최신 데이터 가져오기
+    apiGet('getAll', function (err, response) {
+      if (!err && response && response.success && response.data) {
+        var apiData = response.data;
+        if (apiData.items && apiData.items.length > 0) {
+          items = apiData.items;
+          items.forEach(function (item) {
+            item.stock = Number(item.stock) || 0;
+          });
+        }
+        if (apiData.borrowed) borrowedRecords = apiData.borrowed;
+        if (apiData.changeLog) changeLog = apiData.changeLog;
+        if (apiData.loginLog) loginLog = apiData.loginLog;
+        saveToLocalCache('kiosk_items', items);
+        saveToLocalCache('kiosk_borrowed', borrowedRecords);
+        saveToLocalCache('kiosk_changeLog', changeLog);
+        saveToLocalCache('kiosk_loginLog', loginLog);
+      }
+      renderAdminData();
+    });
+    renderAdminData(); // 일단 캐시 데이터로 즉시 렌더링
   } else if (step === "overdue") {
     // 연체자 화면일 경우
     stepOverdue.classList.remove("hidden");
