@@ -211,7 +211,7 @@ function doPost(e) {
         arrayToSheet(getSheet('changeLog'), params.data.changeLog, ['action', 'details', 'time']);
       }
       if (params.data.loginLog) {
-        arrayToSheet(getSheet('loginLog'), params.data.loginLog, ['action', 'details', 'time']);
+        arrayToSheet(getSheet('loginLog'), params.data.loginLog, ['studentId', 'name', 'phone', 'time']);
       }
       result = { success: true };
 
