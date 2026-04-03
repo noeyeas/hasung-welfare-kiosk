@@ -738,13 +738,14 @@ var phoneRegex = /^\d{11}$/;
 var nameRegex = /^[가-힣a-zA-Z\s]{2,20}$/; // 한글, 영문, 공백만 허용, 2-20자
 
 // 허용된 학과 식별번호
-// 신입생: 402-컴정공, 403-소프트, 404-정융, 405-로봇
+// 신입생: 402-컴정공, 403-소프트, 404-정융, 405/406-로봇
 // 고학번: 202-컴정공, 203-소프트, 204-정융, 205-로봇
-var validDepartmentCodes = ['202', '203', '204', '205', '402', '403', '404', '405'];
+var validDepartmentCodes = ['202', '203', '204', '205', '402', '403', '404', '405', '406'];
 
 // XSS 방지: HTML 특수문자 이스케이프
 var escapeHtml = function escapeHtml(unsafe) {
-  if (typeof unsafe !== 'string') return '';
+  if (unsafe === null || unsafe === undefined) return '';
+  if (typeof unsafe !== 'string') unsafe = String(unsafe);
   return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 };
 
@@ -1354,6 +1355,7 @@ var renderAdminData = function renderAdminData() {
     adminBorrowedTable.innerHTML = emptyMsg;
     var mobileBorrowedTable2 = document.getElementById("mobileBorrowedTable");
     if (mobileBorrowedTable2) mobileBorrowedTable2.innerHTML = emptyMsg;
+    renderLoginLog();
     return;
   }
   var borrowedHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th></tr>\n                    ".concat(borrowedRecords.map(function (record) {
@@ -1365,6 +1367,9 @@ var renderAdminData = function renderAdminData() {
   // 모바일 대여현황 패널에도 동일 내용 복사
   var mobileBorrowedTable = document.getElementById("mobileBorrowedTable");
   if (mobileBorrowedTable) mobileBorrowedTable.innerHTML = borrowedHtml;
+
+  // 로그인 기록 렌더링
+  renderLoginLog();
 };
 
 // 변경 로그 렌더링 함수 (관리자 모드용)
@@ -1420,8 +1425,13 @@ var renderLoginLog = function renderLoginLog() {
     var date = new Date(dateString);
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
+  var formatPhone = function formatPhone(phone) {
+    var s = String(phone || '');
+    if (s.length === 10 && s.charAt(0) !== '0') s = '0' + s;
+    return s;
+  };
   var logHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uC2DC\uAC04</th><th>\uC774\uB984</th><th>\uD559\uBC88</th><th>\uC5F0\uB77D\uCC98</th></tr>\n                    ".concat(recentLogs.map(function (log) {
-    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.phone), "</td>\n                        </tr>\n                    ");
+    return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(formatPhone(log.phone)), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   loginLogTable.innerHTML = logHtml;
   // 데스크탑 팝업에도 동일 내용 복사
