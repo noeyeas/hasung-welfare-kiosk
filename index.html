@@ -48,12 +48,14 @@
             <!-- 통계 대시보드 -->
             <div id="adminDashboard" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
                 <div style="background: linear-gradient(135deg, #1a2e3a, #11131c); border: 1px solid #2c4a5a; border-radius: 16px; padding: 20px; text-align: center;">
-                    <div style="font-size: 0.9rem; color: #6cb4d8; margin-bottom: 8px;">📊 전체 대여 횟수</div>
+                    <div style="font-size: 0.9rem; color: #6cb4d8; margin-bottom: 8px;">📊 누적 대여·수령 횟수</div>
                     <div id="statTodayBorrow" style="font-size: 2.2rem; font-weight: 700; color: #a0d8f0;">0</div>
+                    <div style="font-size: 0.7rem; color: #5a7a8a; margin-top: 4px;">누적 총합 (반납해도 안 줄어듦)</div>
                 </div>
                 <div style="background: linear-gradient(135deg, #2e2a1a, #11131c); border: 1px solid #5a4a2c; border-radius: 16px; padding: 20px; text-align: center;">
-                    <div style="font-size: 0.9rem; color: #d8b46c; margin-bottom: 8px;">📦 현재 총 대여 중</div>
+                    <div style="font-size: 0.9rem; color: #d8b46c; margin-bottom: 8px;">📦 현재 대여 중</div>
                     <div id="statTotalBorrowed" style="font-size: 2.2rem; font-weight: 700; color: #f0d8a0;">0</div>
+                    <div style="font-size: 0.7rem; color: #7a6a4a; margin-top: 4px;">미반납 건수 (반납 시 줄어듦)</div>
                 </div>
                 <div style="background: linear-gradient(135deg, #2e1a1a, #11131c); border: 1px solid #5a2c2c; border-radius: 16px; padding: 20px; text-align: center;">
                     <div style="font-size: 0.9rem; color: #d86c6c; margin-bottom: 8px;">⚠️ 연체 중인 인원</div>
@@ -268,6 +270,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=69"></script>
+    <script src="js/script.js?v=76"></script>
 </body>
 </html>
