@@ -162,6 +162,51 @@ function apiPost(data, callback) {
   }
 }
 
+// 서버로의 미확정(in-flight/실패) 쓰기 추적
+// - 대여/반납 등 변경을 서버에 보낼 때 증가하고, 서버가 성공으로 확정(ack)하면 감소
+// - 실패 시에는 감소하지 않아 "로컬에만 있는 변경"으로 간주 → 관리자 새로고침이 로컬을 덮어쓰지 않게 함
+var pendingSync = 0;
+function apiPostSync(data) {
+  pendingSync++;
+  apiPost(data, function (err, resp) {
+    if (!err && resp && resp.success) {
+      pendingSync--;
+      if (pendingSync < 0) pendingSync = 0;
+    }
+    // 실패 시 pendingSync 유지: 아직 서버에 반영되지 않은 로컬 변경이 있음을 표시
+  });
+}
+
+// 로컬 캐시에만 저장 (서버 동기화는 증분 apiPostSync 로 별도 처리)
+function saveLocalCache() {
+  try {
+    saveToLocalCache('kiosk_items', items);
+    saveToLocalCache('kiosk_borrowed', borrowedRecords);
+  } catch (e) {
+    console.error('Failed to cache data:', e);
+  }
+}
+
+// 대여 중복 판정 키: (studentId, itemName) — borrowedAt 미포함 (클라/서버 동일 규칙)
+// 미반납 상태는 학생·물품당 1건만 가능하므로 이 조합이 유일 키
+function borrowKey(r) {
+  return String(r && r.studentId) + '|' + String(r && r.itemName);
+}
+
+// (studentId, itemName) 기준 중복 제거 - 먼저 등장한 레코드 유지
+function dedupBorrowed(rows) {
+  var seen = {};
+  var out = [];
+  (rows || []).forEach(function (r) {
+    var k = borrowKey(r);
+    if (!seen[k]) {
+      seen[k] = true;
+      out.push(r);
+    }
+  });
+  return out;
+}
+
 // localStorage 헬퍼 (캐시 및 폴백용)
 function saveToLocalCache(key, data) {
   try {
@@ -674,7 +719,9 @@ var hashPassword = /*#__PURE__*/function () {
           }).join('');
           return _context7.a(2, hashHex);
         case 2:
-          return _context7.a(2, simpleHash(password));
+          // 보안 컨텍스트(crypto.subtle)가 없으면 약한 32비트 해시로 폴백하지 않고 인증 거부
+          // (약한 해시는 충돌 위조가 쉬워 관리자 우회에 악용될 수 있음)
+          return _context7.a(2, null);
       }
     }, _callee7);
   }));
@@ -687,6 +734,10 @@ var hashPassword = /*#__PURE__*/function () {
 var ADMIN_PASSWORD_HASH = "de6d045537291b8c8762940084f51bd3d02055d5cbc250e6d2fc6ddb09d88325";
 var ADMIN_PASSWORD_SIMPLE_HASH = "54dc6828";
 
+// 관리자 로그인 성공 시 입력한 비밀번호를 메모리에만 보관 (서버측 파괴적 작업 인증에 사용)
+// 저장/전송하지 않으며 로그아웃·화면 이탈 시 즉시 폐기
+var adminAuthPassword = null;
+
 // 비밀번호 검증 함수
 var verifyAdminPassword = /*#__PURE__*/function () {
   var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(inputPassword) {
@@ -698,7 +749,7 @@ var verifyAdminPassword = /*#__PURE__*/function () {
           return hashPassword(inputPassword);
         case 1:
           inputHash = _context8.v;
-          return _context8.a(2, inputHash === ADMIN_PASSWORD_HASH || inputHash === ADMIN_PASSWORD_SIMPLE_HASH);
+          return _context8.a(2, inputHash !== null && inputHash === ADMIN_PASSWORD_HASH);
       }
     }, _callee8);
   }));
@@ -720,7 +771,7 @@ var verifySuperAdminPassword = /*#__PURE__*/function () {
           return hashPassword(inputPassword);
         case 1:
           inputHash = _context9.v;
-          return _context9.a(2, inputHash === SUPER_ADMIN_SHA256_HASH || inputHash === SUPER_ADMIN_SIMPLE_HASH);
+          return _context9.a(2, inputHash !== null && inputHash === SUPER_ADMIN_SHA256_HASH);
       }
     }, _callee9);
   }));
@@ -1075,6 +1126,10 @@ var loadData = function loadData() {
       if (!err && response && response.success && response.data) {
         var apiData = response.data;
         var loadedItems = apiData.items && apiData.items.length > 0 ? apiData.items : defaultItems;
+        // 재고를 항상 숫자로 보정 (시트 셀이 문자열이면 반납 시 "7"+1="71" 문자열 연결 방지)
+        loadedItems.forEach(function (it) {
+          it.stock = Number(it.stock) || 0;
+        });
         var loadedBorrowed = apiData.borrowed || [];
 
         // localStorage 캐시에 저장
@@ -1097,6 +1152,9 @@ var loadData = function loadData() {
         var cachedItems = loadFromLocalCache('kiosk_items');
         var cachedBorrowed = loadFromLocalCache('kiosk_borrowed');
         if (cachedItems && cachedItems.length > 0) {
+          cachedItems.forEach(function (it) {
+            it.stock = Number(it.stock) || 0;
+          });
           resolve({
             items: cachedItems,
             borrowedRecords: cachedBorrowed || []
@@ -1113,6 +1171,8 @@ var loadData = function loadData() {
 };
 var items = [];
 var borrowedRecords = [];
+// 누적 대여·수령 횟수 (서버 stats 카운터에서 로드, 캐시 폴백) - 로그와 무관한 진짜 누적
+var statsTotalBorrow = loadFromLocalCache('kiosk_statsTotalBorrow');
 
 // 데이터 저장 함수 (localStorage 캐시 + API 동기화)
 var saveData = /*#__PURE__*/function () {
@@ -1124,14 +1184,16 @@ var saveData = /*#__PURE__*/function () {
             // localStorage 캐시 즉시 저장
             saveToLocalCache('kiosk_items', items);
             saveToLocalCache('kiosk_borrowed', borrowedRecords);
-            // API에 전체 데이터 동기화 (fire-and-forget)
-            apiPost({
+            // API에 전체 데이터 동기화 (추적됨) - 파괴적 작업이므로 관리자 인증 동봉
+            apiPostSync({
               action: 'saveItems',
-              data: items
+              data: items,
+              adminPassword: adminAuthPassword
             });
-            apiPost({
+            apiPostSync({
               action: 'saveBorrowed',
-              data: borrowedRecords
+              data: borrowedRecords,
+              adminPassword: adminAuthPassword
             });
           } catch (error) {
             console.error('Failed to save data:', error);
@@ -1150,6 +1212,10 @@ var userInfoCard = document.getElementById("userInfoCard");
 var logBoard = document.getElementById("logBoard");
 var brandLogo = document.getElementById("brandLogo");
 var showStep = function showStep(step) {
+  // 화면 전환 시 기존 자동 로그아웃 타이머 해제 (items 화면이면 아래에서 다시 무장)
+  if (typeof clearAutoLogout === 'function') {
+    clearAutoLogout();
+  }
   // 모든 섹션을 숨김 처리
   stepUser.classList.add("hidden");
   stepItems.classList.add("hidden");
@@ -1198,23 +1264,52 @@ var showStep = function showStep(step) {
     if (mobileBorrowedPanel && window.innerWidth <= 1400) {
       mobileBorrowedPanel.classList.remove("hidden");
     }
-    // 관리자 모드 진입 시 API에서 최신 데이터 가져오기
-    apiGet('getAll', function (err, response) {
-      if (!err && response && response.success && response.data) {
+    // 관리자 모드 진입 시 API에서 최신 데이터 가져오기 (전체 PII 포함 → POST + 관리자 인증)
+    // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
+    apiPost({ action: 'getAllAdmin', adminPassword: adminAuthPassword }, function (err, response) {
+      // req1: 응답 없음(err)·success=false·data 파손 시 로컬 메모리/캐시를 절대 덮어쓰지 않고 캐시로 렌더링만
+      var ok = !err && response && response.success && response.data;
+      // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
+      if (ok && pendingSync === 0) {
         var apiData = response.data;
-        if (apiData.items && apiData.items.length > 0) {
-          items = apiData.items;
-          items.forEach(function (item) {
-            item.stock = Number(item.stock) || 0;
+
+        // req2/5: items 는 "비어있지 않은 배열"일 때만 교체 + 재고 숫자 보정
+        if (Array.isArray(apiData.items) && apiData.items.length > 0) {
+          apiData.items.forEach(function (item) {
+            if (item) item.stock = Number(item.stock) || 0;
           });
+          items = apiData.items;
+          saveToLocalCache('kiosk_items', items);
         }
-        if (apiData.borrowed) borrowedRecords = apiData.borrowed;
-        if (apiData.changeLog) changeLog = apiData.changeLog;
-        if (apiData.loginLog) loginLog = apiData.loginLog;
-        saveToLocalCache('kiosk_items', items);
-        saveToLocalCache('kiosk_borrowed', borrowedRecords);
-        saveToLocalCache('kiosk_changeLog', changeLog);
-        saveToLocalCache('kiosk_loginLog', loginLog);
+
+        // req2/3: 서버 borrowed 를 기준으로 하되, 로컬에만 있고 서버엔 없는 기록(미동기화)을 병합해 유실 방지
+        if (Array.isArray(apiData.borrowed)) {
+          var serverKeys = {};
+          apiData.borrowed.forEach(function (r) {
+            serverKeys[borrowKey(r)] = true;
+          });
+          var localBorrowed = Array.isArray(borrowedRecords) ? borrowedRecords : [];
+          var localOnly = localBorrowed.filter(function (r) {
+            return !serverKeys[borrowKey(r)];
+          });
+          borrowedRecords = dedupBorrowed(apiData.borrowed.concat(localOnly));
+          saveToLocalCache('kiosk_borrowed', borrowedRecords);
+        }
+
+        // req2: changeLog/loginLog 도 "비어있지 않은 배열"일 때만 교체
+        if (Array.isArray(apiData.changeLog) && apiData.changeLog.length > 0) {
+          changeLog = apiData.changeLog;
+          saveToLocalCache('kiosk_changeLog', changeLog);
+        }
+        if (Array.isArray(apiData.loginLog) && apiData.loginLog.length > 0) {
+          loginLog = apiData.loginLog;
+          saveToLocalCache('kiosk_loginLog', loginLog);
+        }
+      }
+      // 누적 카운터는 로컬 쓰기와 무관한 서버 권위 값이므로 pendingSync와 별개로 갱신
+      if (ok && response.data.stats && typeof response.data.stats.totalBorrow === 'number') {
+        statsTotalBorrow = response.data.stats.totalBorrow;
+        saveToLocalCache('kiosk_statsTotalBorrow', statsTotalBorrow);
       }
       renderAdminData();
     });
@@ -1252,12 +1347,22 @@ var showStep = function showStep(step) {
   }
 };
 var renderAdminData = function renderAdminData() {
+  try {
+    // req4/5: 방어 - 전역 데이터가 배열이 아니면 [] 로 정규화, 재고는 항상 숫자로 보정
+    if (!Array.isArray(items)) items = [];
+    if (!Array.isArray(borrowedRecords)) borrowedRecords = [];
+    if (!Array.isArray(changeLog)) changeLog = [];
+    if (!Array.isArray(loginLog)) loginLog = [];
+    items.forEach(function (it) {
+      if (it) it.stock = Number(it.stock) || 0;
+    });
   // 0. 통계 대시보드 업데이트
   var now = new Date();
   var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // 전체 총 대여 횟수 (changeLog에서 대여 기록 카운트)
-  var totalBorrowCount = changeLog.filter(function (log) {
+  // 누적 대여·수령 횟수: 서버 stats 카운터 사용 (200개 캡·덮어쓰기·문자열 의존과 무관한 진짜 누적)
+  // 서버 값이 아직 로드되지 않았으면 레거시 changeLog 카운트로 임시 표시 (서버 응답 오면 정정됨)
+  var totalBorrowCount = typeof statsTotalBorrow === 'number' ? statsTotalBorrow : changeLog.filter(function (log) {
     return log.action === '물품 대여' || log.action === '소모품 수령';
   }).length;
 
@@ -1370,6 +1475,10 @@ var renderAdminData = function renderAdminData() {
 
   // 로그인 기록 렌더링
   renderLoginLog();
+  } catch (e) {
+    // req4: 잘못된 데이터로도 렌더가 예외로 죽지 않도록 방어
+    console.error('renderAdminData failed:', e);
+  }
 };
 
 // 변경 로그 렌더링 함수 (관리자 모드용)
@@ -1950,9 +2059,6 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           return _context16.a(2);
         case 2:
           isProcessing = true;
-          setTimeout(function () {
-            isProcessing = false;
-          }, debounceTime);
           _event$target$dataset = event.target.dataset, action = _event$target$dataset.action, index = _event$target$dataset.index;
           item = items[Number(index)];
           if (currentUser) {
@@ -2019,17 +2125,19 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             dueDate: dueInfo.date.toISOString(),
             borrowedAt: new Date().toISOString()
           };
+          // id 는 로그/정렬용 (중복 판정에는 사용하지 않음 - 판정은 borrowKey)
+          borrowRecord.id = borrowRecord.studentId + '|' + borrowRecord.itemName + '|' + borrowRecord.borrowedAt;
           borrowedRecords.push(borrowRecord);
-          item.stock -= 1;
+          item.stock = (Number(item.stock) || 0) - 1;
           dueLabel = (currentDueInfo || getDueInfo()).label;
-          saveData(); // 데이터 저장
-          // API 개별 동기화 (fire-and-forget)
-          apiPost({
+          saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
+          // API 증분 동기화 (전체 저장과 중복 금지: 기록 중복/유실 방지)
+          apiPostSync({
             action: 'updateStock',
             itemName: item.name,
             stock: item.stock
           });
-          apiPost({
+          apiPostSync({
             action: 'addBorrowed',
             record: borrowRecord
           });
@@ -2061,15 +2169,15 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
         case 9:
           removedRecord = borrowedRecords[borrowedIndex];
           borrowedRecords.splice(borrowedIndex, 1);
-          item.stock += 1;
-          saveData(); // 데이터 저장
-          // API 개별 동기화 (fire-and-forget)
-          apiPost({
+          item.stock = (Number(item.stock) || 0) + 1;
+          saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
+          // API 증분 동기화 (전체 저장과 중복 금지: 기록 중복/유실 방지)
+          apiPostSync({
             action: 'updateStock',
             itemName: item.name,
             stock: item.stock
           });
-          apiPost({
+          apiPostSync({
             action: 'removeBorrowed',
             studentId: removedRecord.studentId,
             itemName: removedRecord.itemName
@@ -2097,13 +2205,17 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           showSelectionResult("\u26A0\uFE0F ".concat(item.name, " \uC7AC\uACE0\uAC00 \uBAA8\uB450 \uC18C\uC9C4\uB418\uC5C8\uC2B5\uB2C8\uB2E4."), false);
           return _context16.a(2);
         case 11:
-          item.stock -= 1;
-          saveData(); // 데이터 저장
-          // API 개별 동기화 (fire-and-forget)
-          apiPost({
+          item.stock = (Number(item.stock) || 0) - 1;
+          saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
+          // API 증분 동기화 (추적됨)
+          apiPostSync({
             action: 'updateStock',
             itemName: item.name,
             stock: item.stock
+          });
+          // 누적 대여·수령 카운터 +1 (소모품 수령도 합산)
+          apiPostSync({
+            action: 'recordConsume'
           });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uC218\uB839 \uC644\uB8CC! \uC18C\uBAA8\uD488\uC740 \uBC18\uB0A9\uD558\uC9C0 \uC54A\uC544\uB3C4 \uB429\uB2C8\uB2E4."), true);
@@ -2121,7 +2233,26 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
     }, _callee16);
   }));
   return function (_x10) {
-    return _ref16.apply(this, arguments);
+    // 중복 처리 방지: 클릭한 버튼을 즉시 비활성화하고, 작업이 실제로 끝날 때(확인창 응답·저장 완료 후) 해제
+    var evt = arguments[0];
+    var btn = evt && evt.target && evt.target.tagName === "BUTTON" ? evt.target : null;
+    if (btn) btn.disabled = true;
+    var safety = setTimeout(function () {
+      isProcessing = false;
+      if (btn) btn.disabled = false;
+    }, 15000); // 만약을 대비한 안전장치 (핸들러가 멈춰도 잠금/비활성이 영구화되지 않도록)
+    var release = function release() {
+      clearTimeout(safety);
+      isProcessing = false;
+      if (btn) btn.disabled = false;
+    };
+    var p = _ref16.apply(this, arguments);
+    if (p && typeof p.then === "function") {
+      p.then(release, release);
+    } else {
+      release();
+    }
+    return p;
   };
 }());
 editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
@@ -2228,6 +2359,11 @@ var resetAutoLogout = function resetAutoLogout() {
   // 물품 선택 화면(items)에서만 자동 로그아웃 작동
   if (currentUser && !stepItems.classList.contains('hidden')) {
     autoLogoutTimer = setTimeout(function () {
+      autoLogoutTimer = null;
+      // 발동 시점에도 여전히 물품 선택 화면인지 재확인 (다른 화면/새 사용자 입력을 초기화하지 않도록)
+      if (!currentUser || stepItems.classList.contains('hidden')) {
+        return;
+      }
       form.reset();
       studentIdError.textContent = "";
       phoneError.textContent = "";
@@ -2237,6 +2373,14 @@ var resetAutoLogout = function resetAutoLogout() {
       currentDueInfo = null;
       showStep("user");
     }, AUTO_LOGOUT_TIME);
+  }
+};
+
+// 화면 전환·로그아웃 시 자동 로그아웃 타이머를 명시적으로 해제
+var clearAutoLogout = function clearAutoLogout() {
+  if (autoLogoutTimer) {
+    clearTimeout(autoLogoutTimer);
+    autoLogoutTimer = null;
   }
 };
 
@@ -2289,6 +2433,7 @@ function _handleLogoAdmin() {
         case 3:
           verifyAdminPassword(password).then(function (isValid) {
             if (isValid) {
+              adminAuthPassword = password; // 서버측 파괴적 작업 인증용 (메모리 한정)
               showStep("admin");
             } else {
               showConfirm({
@@ -2411,6 +2556,7 @@ adminTitle.addEventListener("click", handleAdminTitleTap);
 
 // 2. 관리자 모드에서 로그아웃 버튼 이벤트 리스너 추가
 logoutAdminBtn.addEventListener("click", function () {
+  adminAuthPassword = null; // 관리자 세션 종료 시 비밀번호 폐기
   showStep("user");
 });
 
@@ -2592,12 +2738,12 @@ addItemBtn.addEventListener("click", function () {
 window.updateStock = function (index, change) {
   if (index < 0 || index >= items.length) return;
   var item = items[index];
-  var oldStock = item.stock;
-  items[index].stock = Math.max(0, items[index].stock + change);
+  var oldStock = Number(item.stock) || 0;
+  items[index].stock = Math.max(0, oldStock + change);
   var newStock = items[index].stock;
-  saveData(); // 데이터 저장
-  // API 개별 동기화 (fire-and-forget)
-  apiPost({
+  saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
+  // API 증분 동기화 (추적됨)
+  apiPostSync({
     action: 'updateStock',
     itemName: item.name,
     stock: newStock
@@ -2668,23 +2814,23 @@ window.forceReturn = /*#__PURE__*/function () {
             return i.name === record.itemName;
           });
           if (item) {
-            item.stock += 1; // 재고 증가
+            item.stock = (Number(item.stock) || 0) + 1; // 재고 증가
           }
 
           // 대여 기록 삭제
           borrowedRecords.splice(recordIndex, 1);
 
-          // 데이터 저장
-          saveData();
-          // API 개별 동기화 (fire-and-forget)
+          // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
+          saveLocalCache();
+          // API 증분 동기화 (추적됨)
           if (item) {
-            apiPost({
+            apiPostSync({
               action: 'updateStock',
               itemName: item.name,
               stock: item.stock
             });
           }
-          apiPost({
+          apiPostSync({
             action: 'removeBorrowed',
             studentId: record.studentId,
             itemName: record.itemName
