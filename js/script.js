@@ -89,7 +89,7 @@ function showPasswordPrompt(title) {
 // ========================================
 // Google Sheets API 설정
 // ========================================
-var API_URL = 'https://script.google.com/macros/s/AKfycbyXx677O7yLWcUhIAUDfhJGmW0UqSgx8KUAIsKA9wCRqPOAfdaL7ToPovkKGECW4gJ5ig/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbxnduzDbTqcdb8c0WH06vpiRl9E2SZVF1SoQ95IlLaveD048gaZu-nJbE55Ih9r1FAU4g/exec';
 var API_KEY = 'HS_KIOSK_2024_SEC_TOKEN';
 
 // API GET 요청 헬퍼
