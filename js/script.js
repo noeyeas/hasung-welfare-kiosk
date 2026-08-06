@@ -2619,7 +2619,7 @@ var startFlow = function startFlow(mode) {
     userStepTitle.textContent = mode === 'return' ? '반납자 정보를 입력해 주세요' : '대여자 정보를 입력해 주세요';
   }
   if (userStepSub) {
-    userStepSub.textContent = mode === 'return' ? '대여할 때 입력한 이름 · 학번 · 연락처를 그대로 입력해 주세요' : '이름 · 학번 · 연락처만 입력하면 바로 대여 · 대여 기간 1일';
+    userStepSub.textContent = mode === 'return' ? '대여할 때 입력한 이름 · 학번 · 연락처를 그대로 입력해 주세요' : '이름 · 학번 · 연락처만 입력하면 바로 대여 · 다음 날 18시까지 반납 (금·토 대여는 월요일)';
   }
   showStep("user");
 };
