@@ -1321,12 +1321,15 @@ var showStep = function showStep(step) {
     // 관리자 모드일 때 현재 대여 기록 공간 확보
     var kiosk = document.querySelector('.kiosk');
     if (kiosk) {
+      // 왼쪽 고정 패널(#adminBorrowedPopup 700px / #mobileBorrowedPanel 32vw) 만큼 비켜서
+      // 그 위에 겹치지 않게 한다. body 좌우 패딩(>1400: 22px, 이하: 12px)도 폭에서 빼야
+      // 오른쪽으로 넘치지 않는다.
       if (window.innerWidth > 1400) {
         kiosk.style.marginLeft = '740px';
-        kiosk.style.width = 'min(1200px, calc(100vw - 760px))';
+        kiosk.style.width = 'min(1200px, calc(100vw - 784px))';
       } else {
-        kiosk.style.marginLeft = '0';
-        kiosk.style.width = '66vw';
+        kiosk.style.marginLeft = 'calc(32vw + 8px)';
+        kiosk.style.width = 'calc(68vw - 32px)';
       }
     }
     // 태블릿 왼쪽 대여현황 패널 표시
@@ -1387,6 +1390,12 @@ var showStep = function showStep(step) {
   } else if (step === "overdue") {
     // 연체자 화면일 경우
     stepOverdue.classList.remove("hidden");
+    // 왼쪽 고정 패널이 모두 숨겨지는 화면이므로 관리자 모드에서 준 여백을 원복한다
+    var _kioskOverdue = document.querySelector('.kiosk');
+    if (_kioskOverdue) {
+      _kioskOverdue.style.marginLeft = '';
+      _kioskOverdue.style.width = '';
+    }
     renderOverdueData(); // 연체자 화면 진입 시 데이터 렌더링
   } else if (step === "changelog") {
     // 변경 로그 화면일 경우
@@ -1395,10 +1404,17 @@ var showStep = function showStep(step) {
     if (_loginLogPopup) _loginLogPopup.classList.remove("hidden");
 
     // 변경 로그 화면에서도 레이아웃 조정
+    // 1400px 이하에서는 #loginLogPopup 이 relative 로 흐름에 들어가므로(styles.css 미디어쿼리)
+    // 왼쪽에 비워 둘 공간이 없다. 그때 740px 을 주면 화면이 오른쪽으로 밀려 잘린다.
     var _kiosk = document.querySelector('.kiosk');
     if (_kiosk) {
-      _kiosk.style.marginLeft = '740px';
-      _kiosk.style.width = 'min(1200px, calc(100vw - 760px))';
+      if (window.innerWidth > 1400) {
+        _kiosk.style.marginLeft = '740px';
+        _kiosk.style.width = 'min(1200px, calc(100vw - 784px))';
+      } else {
+        _kiosk.style.marginLeft = '';
+        _kiosk.style.width = '';
+      }
     }
     renderChangeLogView(); // 변경 로그 화면 진입 시 데이터 렌더링
     renderLoginLog(); // 로그인 기록 렌더링
@@ -2603,7 +2619,7 @@ var startFlow = function startFlow(mode) {
     userStepTitle.textContent = mode === 'return' ? '반납자 정보를 입력해 주세요' : '대여자 정보를 입력해 주세요';
   }
   if (userStepSub) {
-    userStepSub.textContent = mode === 'return' ? '대여할 때 입력한 이름 · 학번 · 연락처를 그대로 입력해 주세요' : '이름 · 학번 · 연락처만 입력하면 바로 대여 · 대여 기간 3일';
+    userStepSub.textContent = mode === 'return' ? '대여할 때 입력한 이름 · 학번 · 연락처를 그대로 입력해 주세요' : '이름 · 학번 · 연락처만 입력하면 바로 대여 · 대여 기간 1일';
   }
   showStep("user");
 };
