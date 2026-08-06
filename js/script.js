@@ -1211,12 +1211,63 @@ var userInfoPopup = document.getElementById("userInfoPopup");
 var userInfoCard = document.getElementById("userInfoCard");
 var logBoard = document.getElementById("logBoard");
 var brandLogo = document.getElementById("brandLogo");
+
+var stepHome = document.getElementById("step-home");
+
+// 흐름 모드: 'borrow'(대여) | 'return'(반납) — 홈 화면에서 선택한다
+var flowMode = 'borrow';
+
+// 홈 화면 재고 칩 렌더링
+var homeStock = document.getElementById("homeStock");
+var renderHomeStock = function renderHomeStock() {
+  if (!homeStock) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    homeStock.innerHTML = '';
+    return;
+  }
+  homeStock.innerHTML = items.slice(0, 6).map(function (item) {
+    var stock = parseInt(item.stock) || 0;
+    var cls = 'stock-chip';
+    if (stock <= 0) cls += ' is-out';else if (stock <= 2) cls += ' is-low';
+    // 소모품은 정확한 수량 대신 여유 정도만 알린다
+    var label = item.type === '소모품' ? stock <= 0 ? '소진' : stock <= 5 ? '부족' : '충분' : stock + '개';
+    return '<span class="' + cls + '">' + (item.icon ? escapeHtml(item.icon) + ' ' : '') + escapeHtml(item.name) + ' <b>' + label + '</b></span>';
+  }).join('');
+};
+
+// 진행 단계 표시 갱신 (1 정보 입력 → 2 물품 선택)
+var stepIndicator = document.getElementById("stepIndicator");
+var stepItemsLabel = document.getElementById("stepItemsLabel");
+var updateStepIndicator = function updateStepIndicator(step) {
+  if (!stepIndicator) return;
+  // 정보 입력·물품 선택 단계에서만 노출 (홈·관리자 화면에서는 숨김)
+  var inFlow = step === "user" || step === "items";
+  stepIndicator.classList.toggle("hidden", !inFlow);
+  if (!inFlow) return;
+  if (stepItemsLabel) {
+    stepItemsLabel.textContent = flowMode === 'return' ? '반납할 물품' : '물품 선택';
+  }
+  var current = step === "items" ? "items" : "user";
+  var dots = stepIndicator.querySelectorAll(".step-dot");
+  Array.prototype.forEach.call(dots, function (dot) {
+    var name = dot.getAttribute("data-step");
+    dot.classList.remove("active", "done");
+    if (name === current) {
+      dot.classList.add("active");
+    } else if (current === "items" && name === "user") {
+      dot.classList.add("done");
+    }
+  });
+};
+
 var showStep = function showStep(step) {
+  updateStepIndicator(step);
   // 화면 전환 시 기존 자동 로그아웃 타이머 해제 (items 화면이면 아래에서 다시 무장)
   if (typeof clearAutoLogout === 'function') {
     clearAutoLogout();
   }
   // 모든 섹션을 숨김 처리
+  if (stepHome) stepHome.classList.add("hidden");
   stepUser.classList.add("hidden");
   stepItems.classList.add("hidden");
   stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
@@ -1230,14 +1281,33 @@ var showStep = function showStep(step) {
   if (brandLogo) brandLogo.classList.add("hidden");
   var loginLogPopup = document.getElementById("loginLogPopup");
   if (loginLogPopup) loginLogPopup.classList.add("hidden");
-  if (step === "items") {
+  if (step === "home") {
+    if (stepHome) stepHome.classList.remove("hidden");
+    if (brandLogo) brandLogo.classList.remove("hidden");
+    renderHomeStock();
+    // 홈으로 돌아오면 다음 이용자를 위해 흐름 모드를 초기화
+    flowMode = 'borrow';
+    var _kioskHome = document.querySelector('.kiosk');
+    if (_kioskHome) {
+      _kioskHome.style.marginLeft = '';
+      _kioskHome.style.width = '';
+    }
+  } else if (step === "items") {
     stepItems.classList.remove("hidden");
+    // 반납 흐름에서는 타입 필터 대신 안내 문구를 보여준다
+    var filterRow = document.getElementById("filterRow");
+    var itemsModeLabel = document.getElementById("itemsModeLabel");
+    if (filterRow) filterRow.classList.toggle("hidden", flowMode === 'return');
+    if (itemsModeLabel) itemsModeLabel.classList.toggle("hidden", flowMode !== 'return');
+    // currentUser·flowMode 가 정해진 뒤 목록을 다시 그려야 한다
+    renderItems();
     if (logBoard) logBoard.classList.add("hidden");
     if (brandLogo) brandLogo.classList.remove("hidden");
     if (userInfoPopup) {
       userInfoPopup.classList.remove("hidden");
-      userInfoPopup.style.top = '20px';
-      userInfoPopup.style.left = '20px';
+      // 위치는 CSS(.user-info-popup)가 정한다 — 헤더 아래에서 시작
+      userInfoPopup.style.top = '';
+      userInfoPopup.style.left = '';
     }
     // 자동 로그아웃 타이머 시작
     if (typeof resetAutoLogout === 'function') {
@@ -1640,24 +1710,12 @@ if (clearSearchBtn) {
 var setFilter = function setFilter(filter) {
   currentFilter = filter;
 
-  // 모든 필터 버튼 비활성화 스타일
+  // 활성/비활성 상태는 CSS(.filter-btn.active)가 담당한다
   [filterAllBtn, filterBorrowBtn, filterConsumeBtn].forEach(function (btn) {
-    if (btn) {
-      btn.style.background = '#252836';
-      btn.style.borderColor = '#2c3242';
-      btn.style.color = '#f6f7fb';
-      btn.classList.remove('active');
-    }
+    if (btn) btn.classList.remove('active');
   });
-
-  // 선택된 필터 버튼 활성화 스타일
   var activeBtn = filter === 'all' ? filterAllBtn : filter === 'borrow' ? filterBorrowBtn : filterConsumeBtn;
-  if (activeBtn) {
-    activeBtn.style.background = '#617dff';
-    activeBtn.style.borderColor = '#617dff';
-    activeBtn.style.color = '#fff';
-    activeBtn.classList.add('active');
-  }
+  if (activeBtn) activeBtn.classList.add('active');
   renderItems();
 };
 if (filterAllBtn) {
@@ -1676,10 +1734,27 @@ if (filterConsumeBtn) {
   });
 }
 var renderItems = function renderItems() {
+  // 재고가 바뀔 때마다 홈 화면 칩도 같이 갱신한다
+  renderHomeStock();
+
   // 필터링
   var filteredItems = items;
+  var isReturnFlow = flowMode === 'return';
 
-  // 타입 필터링
+  // 반납 흐름에서는 이 사용자가 실제로 빌린 물품만 보여준다
+  if (isReturnFlow) {
+    var myItems = {};
+    borrowedRecords.forEach(function (record) {
+      if (currentUser && String(record.studentId) === String(currentUser.studentId)) {
+        myItems[record.itemName] = true;
+      }
+    });
+    filteredItems = filteredItems.filter(function (item) {
+      return myItems[item.name];
+    });
+  }
+
+  // 타입 필터링 (반납 흐름에서는 필터 UI가 숨겨져 있어 적용되지 않음)
   if (currentFilter === 'borrow') {
     filteredItems = filteredItems.filter(function (item) {
       return item.type === '대여';
@@ -1697,14 +1772,47 @@ var renderItems = function renderItems() {
     });
   }
   if (filteredItems.length === 0) {
-    var message = searchQuery ? "\"".concat(escapeHtml(searchQuery), "\"\uC5D0 \uB300\uD55C \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.") : currentFilter === 'borrow' ? '대여 가능한 물품이 없습니다.' : currentFilter === 'consume' ? '소모품이 없습니다.' : '물품이 없습니다.';
-    itemGrid.innerHTML = "<div style=\"text-align: center; padding: 40px; color: #9ba3bf; font-size: 1.1rem;\">".concat(message, "</div>");
+    var message = isReturnFlow ? '반납할 물품이 없습니다. 대여 중인 물품이 확인되지 않아요.' : searchQuery ? '"' + escapeHtml(searchQuery) + '"에 대한 검색 결과가 없습니다.' : currentFilter === 'borrow' ? '대여 가능한 물품이 없습니다.' : currentFilter === 'consume' ? '소모품이 없습니다.' : '물품이 없습니다.';
+    itemGrid.innerHTML = '<div class="item-grid-empty">' + message + '</div>';
     return;
   }
-  itemGrid.innerHTML = filteredItems.map(function (item, index) {
+  itemGrid.innerHTML = filteredItems.map(function (item) {
     // 원본 배열에서의 인덱스 찾기
     var originalIndex = items.indexOf(item);
-    return "\n                    <div class=\"item-card\">\n                        ".concat(item.icon ? "<span style=\"font-size: 2.5rem; flex-shrink: 0;\">".concat(escapeHtml(item.icon), "</span>") : item.image ? "<img src=\"".concat(escapeHtml(item.image), "\" alt=\"").concat(escapeHtml(item.name), "\" style=\"width: 50px; height: 50px; object-fit: contain; flex-shrink: 0;\">") : '', "\n                        <div class=\"item-card-info\">\n                            <strong>").concat(escapeHtml(item.name), "</strong>\n                            <small>").concat(escapeHtml(item.type), " \xB7 \uC7AC\uACE0 ").concat(parseInt(item.stock) || 0, "\uAC1C</small>\n                        </div>\n                        <div class=\"item-card-actions\">\n                            ").concat(item.type === "대여" ? "\n                                <button class=\"borrow ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"borrow\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '대여하기', "\n                                </button>\n                                <button class=\"secondary\" data-action=\"return\" data-index=\"").concat(originalIndex, "\">\n                                    \uBC18\uB0A9\uD558\uAE30\n                                </button>\n                            ") : "\n                                <button class=\"consume ".concat(item.stock <= 0 ? 'disabled' : '', "\" data-action=\"consume\" data-index=\"").concat(originalIndex, "\" ").concat(item.stock <= 0 ? 'disabled title="재고가 없습니다"' : '', ">\n                                    ").concat(item.stock <= 0 ? '재고 없음' : '수령하기', "\n                                </button>\n                            "), "\n                        </div>\n                    </div>\n                ");
+    var stock = parseInt(item.stock) || 0;
+    var outOfStock = stock <= 0;
+    var iconHtml = '';
+    if (item.icon) {
+      iconHtml = '<span style="font-size: 2.5rem; flex-shrink: 0;">' + escapeHtml(item.icon) + '</span>';
+    } else if (item.image) {
+      iconHtml = '<img src="' + escapeHtml(item.image) + '" alt="' + escapeHtml(item.name) + '" style="width: 50px; height: 50px; object-fit: contain; flex-shrink: 0;">';
+    }
+    var actionsHtml;
+    if (isReturnFlow) {
+      // 반납 흐름: 목록 자체가 대여 중인 물품이므로 반납 버튼만 노출한다
+      actionsHtml = '<button class="borrow" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
+    } else if (item.type === "대여") {
+      actionsHtml = '<button class="borrow' + (outOfStock ? ' disabled' : '') + '" data-action="borrow" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '대여하기') + '</button>' + '<button class="secondary" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
+    } else {
+      actionsHtml = '<button class="consume' + (outOfStock ? ' disabled' : '') + '" data-action="consume" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '수령하기') + '</button>';
+    }
+    // 반납 흐름에서는 재고보다 반납 기한이 필요한 정보다
+    var metaText;
+    if (isReturnFlow) {
+      var myRecord = null;
+      for (var i = 0; i < borrowedRecords.length; i++) {
+        var r = borrowedRecords[i];
+        if (currentUser && String(r.studentId) === String(currentUser.studentId) && r.itemName === item.name) {
+          myRecord = r;
+          break;
+        }
+      }
+      metaText = myRecord && myRecord.dueLabel ? '대여 중 \xB7 반납 기한 ' + escapeHtml(myRecord.dueLabel) : '대여 중';
+    } else {
+      metaText = escapeHtml(item.type) + ' \xB7 재고 ' + stock + '개';
+    }
+
+    return '<div class="item-card">' + iconHtml + '<div class="item-card-info">' + '<strong>' + escapeHtml(item.name) + '</strong>' + '<small>' + metaText + '</small>' + '</div>' + '<div class="item-card-actions">' + actionsHtml + '</div>' + '</div>';
   }).join("");
   // Twemoji로 이모지를 이미지로 변환 (구형 브라우저 지원)
   if (typeof twemoji !== 'undefined') {
@@ -1866,7 +1974,7 @@ var initApp = /*#__PURE__*/function () {
             console.error('localStorage fallback error:', e2);
           }
         case 5:
-          showStep("user");
+          showStep("home");
         case 6:
           return _context15.a(2);
       }
@@ -2026,7 +2134,26 @@ form.addEventListener("submit", function (event) {
 
   // 로그인 기록 저장
   addLoginLog(currentUser);
-  var userInfoHtml = "\n                <strong>".concat(name, " (").concat(studentId, ")</strong><br>\n                \uC5F0\uB77D\uCC98: ").concat(phone, "<br>\n                \uBC18\uB0A9 \uAE30\uD55C: <span style=\"color: #ff8f8f; font-weight: 600;\">").concat(currentDueInfo.label, "</span><br>\n                <ul>\n                    <li>\uAE30\uD55C \uCD08\uACFC \uC2DC 1\uC77C\uB2F9 2,000\uC6D0 \uBC8C\uAE08 (\uC8FC\uB9D0 \uD3EC\uD568)</li>\n                    <li>").concat(currentDueInfo.isWeekendPenalty ? "같은 주 내 미반납 시 주말에도 벌금이 부과됩니다." : "금요일 대여는 다음 주 월요일 18:00까지 반납", "</li>\n                    <li>\uBB3C\uD488 \uBD84\uC2E4\xB7\uD30C\uC190 \uC2DC \uB3D9\uC77C \uC81C\uD488\uC73C\uB85C \uBCC0\uC0C1</li>\n                </ul>\n            ");
+  var userInfoHtml;
+  if (flowMode === 'return') {
+    // 반납 흐름에서는 새 대여 기한·벌금 안내가 맞지 않는다
+    userInfoHtml = '<strong>' + escapeHtml(name) + ' (' + escapeHtml(studentId) + ')</strong><br>' +
+      '연락처: ' + escapeHtml(phone) + '<br>' +
+      '<span style="color: #6ee7a8; font-weight: 600;">반납 진행 중</span>' +
+      '<ul>' +
+      '<li>반납할 물품을 눌러 주세요</li>' +
+      '<li>물품 상태 이상 시 관리자에게 알려주세요</li>' +
+      '</ul>';
+  } else {
+    userInfoHtml = '<strong>' + escapeHtml(name) + ' (' + escapeHtml(studentId) + ')</strong><br>' +
+      '연락처: ' + escapeHtml(phone) + '<br>' +
+      '반납 기한: <span style="color: #ff7a7a; font-weight: 600;">' + escapeHtml(currentDueInfo.label) + '</span>' +
+      '<ul>' +
+      '<li>기한 초과 시 1일당 2,000원 벌금 (주말 포함)</li>' +
+      '<li>' + (currentDueInfo.isWeekendPenalty ? '같은 주 내 미반납 시 주말에도 벌금이 부과됩니다.' : '금요일 대여는 다음 주 월요일 18:00까지 반납') + '</li>' +
+      '<li>물품 분실·파손 시 동일 제품으로 변상</li>' +
+      '</ul>';
+  }
   if (userInfoCard) {
     userInfoCard.innerHTML = userInfoHtml;
   }
@@ -2293,7 +2420,7 @@ editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__
         phoneError.textContent = "";
         currentUser = null;
         currentDueInfo = null;
-        showStep("user");
+        showStep("home");
       case 3:
         return _context17.a(2);
     }
@@ -2341,7 +2468,7 @@ finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/
         selectionResult.textContent = "";
         currentUser = null;
         currentDueInfo = null;
-        showStep("user");
+        showStep("home");
       case 3:
         return _context18.a(2);
     }
@@ -2371,7 +2498,7 @@ var resetAutoLogout = function resetAutoLogout() {
       selectionResult.textContent = "";
       currentUser = null;
       currentDueInfo = null;
-      showStep("user");
+      showStep("home");
     }, AUTO_LOGOUT_TIME);
   }
 };
@@ -2459,6 +2586,77 @@ function _handleLogoAdmin() {
 if (brandLogo) {
   brandLogo.addEventListener("touchend", handleLogoAdmin);
   brandLogo.addEventListener("click", handleLogoAdmin);
+}
+
+// ── 홈 화면 진입 버튼들 ────────────────────────────────────
+var goBorrowBtn = document.getElementById("goBorrow");
+var goReturnBtn = document.getElementById("goReturn");
+var goAdminBtn = document.getElementById("goAdmin");
+var backToHomeBtn = document.getElementById("backToHome");
+var userStepTitle = document.getElementById("userStepTitle");
+var userStepSub = document.getElementById("userStepSub");
+
+// 대여/반납 모두 본인 확인이 먼저이므로 같은 정보 입력 화면을 쓰고, 문구만 바꾼다
+var startFlow = function startFlow(mode) {
+  flowMode = mode;
+  if (userStepTitle) {
+    userStepTitle.textContent = mode === 'return' ? '반납자 정보를 입력해 주세요' : '대여자 정보를 입력해 주세요';
+  }
+  if (userStepSub) {
+    userStepSub.textContent = mode === 'return' ? '대여할 때 입력한 이름 · 학번 · 연락처를 그대로 입력해 주세요' : '이름 · 학번 · 연락처만 입력하면 바로 대여 · 대여 기간 3일';
+  }
+  showStep("user");
+};
+if (goBorrowBtn) {
+  goBorrowBtn.addEventListener("click", function () {
+    startFlow('borrow');
+  });
+}
+if (goReturnBtn) {
+  goReturnBtn.addEventListener("click", function () {
+    startFlow('return');
+  });
+}
+if (backToHomeBtn) {
+  backToHomeBtn.addEventListener("click", function () {
+    form.reset();
+    nameError.textContent = "";
+    studentIdError.textContent = "";
+    phoneError.textContent = "";
+    currentUser = null;
+    currentDueInfo = null;
+    showStep("home");
+  });
+}
+
+// 홈 화면의 관리자 버튼 — 로고 더블탭과 동일하게 비밀번호를 요구한다
+if (goAdminBtn) {
+  goAdminBtn.addEventListener("click", function () {
+    if (adminEntering) return;
+    adminEntering = true;
+    Promise.resolve(showPasswordPrompt("관리자 비밀번호를 입력하세요")).then(function (password) {
+      if (password === null) {
+        adminEntering = false;
+        return;
+      }
+      return verifyAdminPassword(password).then(function (isValid) {
+        if (isValid) {
+          adminAuthPassword = password; // 서버측 파괴적 작업 인증용 (메모리 한정)
+          showStep("admin");
+        } else {
+          showConfirm({
+            icon: '🔒',
+            title: '접근 거부',
+            message: '비밀번호가 틀렸습니다.',
+            autoClose: 2000
+          });
+        }
+        adminEntering = false;
+      });
+    })["catch"](function () {
+      adminEntering = false;
+    });
+  });
 }
 
 // 변경 로그 화면에서 돌아가기 버튼
@@ -2557,7 +2755,7 @@ adminTitle.addEventListener("click", handleAdminTitleTap);
 // 2. 관리자 모드에서 로그아웃 버튼 이벤트 리스너 추가
 logoutAdminBtn.addEventListener("click", function () {
   adminAuthPassword = null; // 관리자 세션 종료 시 비밀번호 폐기
-  showStep("user");
+  showStep("home");
 });
 
 // 연체자 화면으로 이동
@@ -2987,6 +3185,20 @@ function makeDraggable(cardElement) {
 
 // 모든 팝업에 드래그 기능 적용
 makeDraggable(userInfoCard);
+
+// 헤더 시계
+var headerClock = document.getElementById("headerClock");
+var DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+var updateHeaderClock = function updateHeaderClock() {
+  if (!headerClock) return;
+  var d = new Date();
+  var pad = function pad(n) {
+    return String(n).padStart(2, "0");
+  };
+  headerClock.textContent = d.getFullYear() + ". " + pad(d.getMonth() + 1) + ". " + pad(d.getDate()) + ". (" + DAY_LABELS[d.getDay()] + ") " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+};
+updateHeaderClock();
+setInterval(updateHeaderClock, 10000);
 
 // Service Worker 등록 (PWA 지원)
 if ('serviceWorker' in navigator) {
