@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hasung-kiosk-v22';
+const CACHE_NAME = 'hasung-kiosk-v23';
 const urlsToCache = [
   './',
   './index.html',
@@ -28,21 +28,32 @@ self.addEventListener('install', (event) => {
 
 // 활성화 이벤트 - 오래된 캐시 삭제
 self.addEventListener('activate', (event) => {
+  // clients.claim() 도 waitUntil 안에서 처리해야 활성화 완료가 보장된다.
+  // 이벤트 핸들러의 return 값은 무시되므로 예전 코드는 제어권 인계 시점을 보장하지 못했다.
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('오래된 캐시 삭제:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((cacheName) => cacheName !== CACHE_NAME)
+            .map((cacheName) => {
+              console.log('오래된 캐시 삭제:', cacheName);
+              return caches.delete(cacheName);
+            })
+        );
+      })
+      .then(() => self.clients.claim())
   );
-  // 모든 클라이언트에 즉시 제어권 부여
-  return self.clients.claim();
 });
+
+// 캐시에 저장할 요청인지 판단
+// 동일 출처의 정적 자원만 대상으로 한다 (API 응답·외부 CDN은 제외).
+function shouldCache(request, url) {
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+  return ['document', 'style', 'script', 'image', 'manifest'].includes(request.destination);
+}
 
 // fetch 이벤트 - 네트워크 우선, 실패 시 캐시 사용
 self.addEventListener('fetch', (event) => {
@@ -65,14 +76,16 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
 
-        // 응답 복제 (한 번만 읽을 수 있으므로)
-        const responseToCache = response.clone();
-
-        // 캐시에 저장
-        caches.open(CACHE_NAME)
-          .then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+        // 캐시 대상만 저장한다.
+        // 모든 GET 응답을 무제한으로 담으면 오래 켜두는 키오스크에서 저장 공간이 계속 늘어난다.
+        if (shouldCache(event.request, url)) {
+          // 응답 복제 (한 번만 읽을 수 있으므로)
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+        }
 
         return response;
       })
