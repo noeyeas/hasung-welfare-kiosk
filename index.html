@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#617dff">
+    <meta name="theme-color" content="#0a0c14">
     <meta name="description" content="인공지능융합대학 하성 복지물품 대여 및 관리 키오스크">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,121 +18,163 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
-    <title></title>
+    <title>하성 복지물품 대여소</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=68">
+    <link rel="stylesheet" href="css/styles.css?v=73">
 </head>
 <body>
-    <!-- 브랜드 로고 -->
-    <div id="brandLogo" class="brand-logo">
-        <img src="logo.png" alt="하성 로고">
-        <div class="brand-text">
-            인공지능융합대학 제3대 학생회
-            <div class="brand-subtitle">복지물품 대여 키오스크</div>
+    <!-- 상단 헤더 -->
+    <header id="brandLogo" class="brand-logo">
+        <div class="header-brand">
+            <img src="logo.png" alt="하성 로고">
+            <div class="brand-text">
+                인공지능융합대학 제3대 학생회
+                <div class="brand-subtitle">하성 복지물품 대여소</div>
+            </div>
         </div>
-    </div>
+        <div class="header-meta">
+            <div id="headerClock" class="clock"></div>
+        </div>
+    </header>
 
     <section class="kiosk">
+
+        <!-- 진행 단계 -->
+        <div id="stepIndicator" class="step-indicator hidden">
+            <div class="step-dot active" data-step="user"><span class="step-num">1</span>정보 입력</div>
+            <div class="step-line"></div>
+            <div class="step-dot" data-step="items"><span class="step-num">2</span><span id="stepItemsLabel">물품 선택</span></div>
+        </div>
+
+        <!-- 홈 화면 -->
+        <section id="step-home">
+            <div class="home-hero">
+                <div class="eyebrow">Haseong Welfare</div>
+                <h1 class="home-title">필요한 물품, <em>1분</em> 안에 빌려가세요</h1>
+                <p class="home-sub">이름 · 학번 · 연락처만 입력하면 끝 · 대여 기간 3일</p>
+            </div>
+
+            <div class="home-actions">
+                <button type="button" id="goBorrow" class="home-card is-primary">
+                    <span class="home-card-icon">📦</span>
+                    <span class="home-card-title">대여하기</span>
+                    <span class="home-card-desc">우산 · 보조배터리 · 생활용품</span>
+                </button>
+                <button type="button" id="goReturn" class="home-card">
+                    <span class="home-card-icon is-glyph">↩</span>
+                    <span class="home-card-title">반납하기</span>
+                    <span class="home-card-desc">빌린 물품을 바로 반납</span>
+                </button>
+            </div>
+
+            <div class="home-footer">
+                <div id="homeStock" class="stock-chips"></div>
+                <button type="button" id="goAdmin" class="ghost-btn">관리자 모드</button>
+            </div>
+        </section>
 
         <section id="step-admin" class="hidden">
             <div id="adminTitle" class="step-title">관리자 모드</div>
             <!-- 태블릿용 대여현황 패널 (왼쪽 고정) -->
-            <div id="mobileBorrowedPanel" class="hidden" style="position: fixed; left: 5px; top: 20px; width: 32vw; height: calc(100vh - 80px); background: #11131c; border: 1px solid #2a3044; border-radius: 16px; padding: 12px; overflow-y: auto; z-index: 1100;">
-                <h3 style="margin: 0 0 10px; color: #ffc485; font-size: 0.95rem;">📝 대여 기록</h3>
+            <div id="mobileBorrowedPanel" class="hidden" style="position: fixed; left: 10px; top: 12px; width: 32vw; height: calc(100vh - var(--marquee-h) - 24px); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px; overflow-y: auto; z-index: 1100;">
+                <h3 style="margin: 0 0 10px; color: var(--text-2); font-size: 0.8rem; font-weight: 700;">📝 대여 기록</h3>
                 <div id="mobileBorrowedTable" style="font-size: 0.75rem;"></div>
             </div>
 
             <!-- 통계 대시보드 -->
-            <div id="adminDashboard" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
-                <div style="background: linear-gradient(135deg, #1a2e3a, #11131c); border: 1px solid #2c4a5a; border-radius: 16px; padding: 20px; text-align: center;">
-                    <div style="font-size: 0.9rem; color: #6cb4d8; margin-bottom: 8px;">📊 누적 대여·수령 횟수</div>
-                    <div id="statTodayBorrow" style="font-size: 2.2rem; font-weight: 700; color: #a0d8f0;">0</div>
-                    <div style="font-size: 0.7rem; color: #5a7a8a; margin-top: 4px;">누적 총합 (반납해도 안 줄어듦)</div>
+            <div id="adminDashboard">
+                <div class="stat-card is-info">
+                    <div class="stat-label">📊 누적 대여·수령 횟수</div>
+                    <div id="statTodayBorrow" class="stat-value">0</div>
+                    <div class="stat-hint">누적 총합 (반납해도 안 줄어듦)</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #2e2a1a, #11131c); border: 1px solid #5a4a2c; border-radius: 16px; padding: 20px; text-align: center;">
-                    <div style="font-size: 0.9rem; color: #d8b46c; margin-bottom: 8px;">📦 현재 대여 중</div>
-                    <div id="statTotalBorrowed" style="font-size: 2.2rem; font-weight: 700; color: #f0d8a0;">0</div>
-                    <div style="font-size: 0.7rem; color: #7a6a4a; margin-top: 4px;">미반납 건수 (반납 시 줄어듦)</div>
+                <div class="stat-card is-amber">
+                    <div class="stat-label">📦 현재 대여 중</div>
+                    <div id="statTotalBorrowed" class="stat-value">0</div>
+                    <div class="stat-hint">미반납 건수 (반납 시 줄어듦)</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #2e1a1a, #11131c); border: 1px solid #5a2c2c; border-radius: 16px; padding: 20px; text-align: center;">
-                    <div style="font-size: 0.9rem; color: #d86c6c; margin-bottom: 8px;">⚠️ 연체 중인 인원</div>
-                    <div id="statOverdue" style="font-size: 2.2rem; font-weight: 700; color: #f0a0a0;">0</div>
+                <div class="stat-card is-danger">
+                    <div class="stat-label">⚠️ 연체 중인 인원</div>
+                    <div id="statOverdue" class="stat-value">0</div>
+                    <div class="stat-hint">반납 기한이 지난 건수</div>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 14px; margin-bottom: 16px;">
-                <button id="logoutAdmin" class="btn-primary" style="flex: 1;">사용자 모드로 돌아가기</button>
-                <button id="viewOverdue" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #ff5c5c, #e53e3e);">연체자 목록 보기</button>
+            <div class="admin-toolbar">
+                <button id="logoutAdmin" class="btn-primary">사용자 모드로 돌아가기</button>
+                <button id="viewOverdue" class="btn-primary btn-danger">연체자 목록 보기</button>
             </div>
 
             <!-- 데이터 백업 섹션은 추가 관리자 모드(변경 로그)로 이동 -->
 
             <div>
                 <!-- 물품 재고 현황 및 새 물품 추가 -->
-                <h3 style="margin-top: 0; color: #a0f0a0; font-size: 1.3rem;">📦 물품 재고 현황</h3>
+                <h3 class="admin-section-title">📦 물품 재고 현황</h3>
                 <div id="adminStockTable" class="admin-data-table"></div>
 
-                <h3 style="margin-top: 24px; color: #a0f0a0; font-size: 1.3rem;">➕ 새 물품 추가</h3>
-                <div style="margin-top: 16px; padding: 24px 16px; background: #11131c; border-radius: 20px; border: 1px solid #2a3044;">
+                <h3 class="admin-section-title">➕ 새 물품 추가</h3>
+                <div class="admin-form-card">
                     <div class="field">
                         <label for="newItemIcon">아이콘 (이모지 입력)</label>
-                        <input id="newItemIcon" type="text" placeholder="이모지 입력 예: 🌂" style="width: 100%; padding: 18px 14px; font-size: 1.5rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                        <input id="newItemIcon" type="text" placeholder="이모지 입력 예: 🌂" style="font-size: 1.3rem;">
                     </div>
                     <div class="field">
                         <label for="newItemName">물품명</label>
-                        <input id="newItemName" type="text" placeholder="예: 우산" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                        <input id="newItemName" type="text" placeholder="예: 우산">
                     </div>
                     <div class="field">
                         <label for="newItemType">구분</label>
-                        <select id="newItemType" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none;">
+                        <select id="newItemType">
                             <option value="대여">대여</option>
                             <option value="소모품">소모품</option>
                         </select>
                     </div>
                     <div class="field">
                         <label for="newItemStock">초기 재고</label>
-                        <input id="newItemStock" type="number" min="0" placeholder="0" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                        <input id="newItemStock" type="number" min="0" placeholder="0">
                     </div>
                     <div class="field">
                         <label for="newItemNotice">주의사항</label>
-                        <input id="newItemNotice" type="text" placeholder="예: 비 오는 날 사용 후 충분히 말려서 반납" style="width: 100%; padding: 18px 14px; font-size: 1.1rem; border-radius: 18px; border: 2px solid #2c3242; background: #10121a; color: #f6f7fb; outline: none; max-width: none; margin: 0;">
+                        <input id="newItemNotice" type="text" placeholder="예: 비 오는 날 사용 후 충분히 말려서 반납">
                     </div>
-                    <button id="addItemBtn" class="btn-primary" style="margin-top: 12px;">물품 추가</button>
+                    <button id="addItemBtn" class="btn-primary">물품 추가</button>
                 </div>
             </div>
         </section>
 
         <!-- 관리자 모드 현재 대여 기록 (왼쪽 고정) -->
-        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
-            <h3 style="margin: 0 0 16px; color: #ffc485; font-size: 1.3rem; flex-shrink: 0;">📝 현재 대여 기록</h3>
+        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 22px; top: 18px; width: 700px; height: calc(100vh - var(--marquee-h) - 32px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+            <h3 style="margin: 0 0 14px; color: var(--text); font-size: 1rem; font-weight: 700; flex-shrink: 0;">📝 현재 대여 기록</h3>
             <div id="adminBorrowedTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
         </div>
 
         <section id="step-overdue" class="hidden">
             <div class="step-title">연체자 목록</div>
-            <button id="backToAdmin" class="secondary" style="padding: 20px 36px; font-size: 1.3rem; border-radius: 30px;">관리자 모드로 돌아가기</button>
+            <div class="actions">
+                <button id="backToAdmin" class="secondary">관리자 모드로 돌아가기</button>
+            </div>
 
-            <h3 style="margin-top: 24px; color: #ff8f8f; font-size: 1.3rem;">⚠️ 연체된 대여 기록</h3>
-            <div id="overdueTable" class="admin-data-table" style="font-size: 0.9rem;"></div>
+            <h3 class="admin-section-title" style="color: var(--danger);">⚠️ 연체된 대여 기록</h3>
+            <div id="overdueTable" class="admin-data-table"></div>
         </section>
 
-        <section id="step-changelog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0c12; z-index: 2000; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;">
+        <section id="step-changelog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); z-index: 2000; padding: 20px 22px calc(var(--marquee-h) + 16px); display: flex; flex-direction: column; overflow: hidden;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap;">
-                <div class="step-title" style="margin: 0; white-space: nowrap; font-size: 1.3rem;">변경 로그</div>
+                <div class="step-title" style="margin: 0; white-space: nowrap;">변경 로그</div>
                 <div style="display: flex; gap: 10px;">
-                    <button id="exportBackupBtn" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem; background: linear-gradient(135deg, #2ecc71, #27ae60);">💾 백업 내보내기</button>
-                    <button id="importBackupBtn" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem; background: linear-gradient(135deg, #3498db, #2980b9);">📂 백업 불러오기</button>
-                    <button id="backFromChangelog" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem;">관리자 모드로 돌아가기</button>
+                    <button id="exportBackupBtn" class="btn-primary btn-success" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">💾 백업 내보내기</button>
+                    <button id="importBackupBtn" class="btn-primary btn-info" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">📂 백업 불러오기</button>
+                    <button id="backFromChangelog" class="btn-primary" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">관리자 모드로 돌아가기</button>
                 </div>
             </div>
 
             <!-- 탭 버튼 -->
-            <div id="logTabs" style="display: flex; gap: 0; border-bottom: 2px solid #2a3044;">
-                <button id="tabChangeLog" class="log-tab active" style="flex: 1; padding: 12px; background: #2a3044; color: #9aa9ff; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">📋 최근 변경 로그</button>
-                <button id="tabLoginLog" class="log-tab" style="flex: 1; padding: 12px; background: transparent; color: #6cb4d8; border: none; border-radius: 12px 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer;">👤 로그인 기록</button>
+            <div id="logTabs">
+                <button id="tabChangeLog" class="log-tab active" style="background: #2a3044;">📋 최근 변경 로그</button>
+                <button id="tabLoginLog" class="log-tab" style="background: transparent;">👤 로그인 기록</button>
             </div>
 
             <!-- 변경 로그 내용 -->
@@ -147,12 +189,17 @@
         </section>
 
         <!-- 기존 로그인 기록 팝업 유지 (데스크탑용) -->
-        <div id="loginLogPopup" class="hidden" style="position: fixed; left: 20px; top: 20px; width: 700px; height: calc(100vh - 40px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
-            <h3 style="margin: 0 0 16px; color: #6cb4d8; font-size: 1.3rem; flex-shrink: 0;">👤 로그인 기록</h3>
+        <div id="loginLogPopup" class="hidden" style="position: fixed; left: 22px; top: 18px; width: 700px; height: calc(100vh - var(--marquee-h) - 32px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
+            <h3 style="margin: 0 0 14px; color: var(--text); font-size: 1rem; font-weight: 700; flex-shrink: 0;">👤 로그인 기록</h3>
             <div id="loginLogTable2" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
         </div>
 
-        <section id="step-user">
+        <section id="step-user" class="hidden">
+            <div class="step-head">
+                <button type="button" id="backToHome" class="ghost-btn">← 뒤로</button>
+                <h1 id="userStepTitle">대여자 정보를 입력해 주세요</h1>
+                <p id="userStepSub">이름 · 학번 · 연락처만 입력하면 바로 대여 · 대여 기간 3일</p>
+            </div>
             <form id="user-form" novalidate>
                 <div class="field">
                     <label for="name">이름</label>
@@ -169,37 +216,36 @@
                     <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="off" required>
                     <div id="phoneError" class="error" aria-live="polite"></div>
                 </div>
-                <div class="field" style="margin-top: 8px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem; color: #ccc;">
-                        <input type="checkbox" id="privacyConsent" style="width: 20px; height: 20px; accent-color: #6cb4d8;">
-                        <span>개인정보 수집·이용에 동의합니다 <a href="#" id="privacyDetail" style="color: #6cb4d8; text-decoration: underline;">[상세보기]</a></span>
+                <div class="field">
+                    <label class="consent-row">
+                        <input type="checkbox" id="privacyConsent">
+                        <span>개인정보 수집·이용에 동의합니다 <a href="#" id="privacyDetail">상세보기</a></span>
                     </label>
                     <div id="privacyError" class="error" aria-live="polite"></div>
                 </div>
-                <button class="btn-primary" type="submit" id="submitBtn">다음 단계</button>
+                <button class="btn-primary" type="submit" id="submitBtn">다음 단계 →</button>
             </form>
         </section>
 
-        <section id="step-items" class="hidden" style="overflow: visible; max-height: 100vh;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; position: relative; margin-top: 0; padding-top: 20px;">
-                <div class="actions" style="margin: 0; flex-direction: row; position: absolute; top: 0; right: 120px; gap: 12px;">
-                    <button id="finish" class="btn-primary">완료</button>
+        <section id="step-items" class="hidden">
+            <div class="items-toolbar">
+                <div class="filter-row" id="filterRow">
+                    <button id="filterAll" class="filter-btn active" data-filter="all">전체</button>
+                    <button id="filterBorrow" class="filter-btn" data-filter="borrow">대여 가능만</button>
+                    <button id="filterConsume" class="filter-btn" data-filter="consume">소모품만</button>
+                </div>
+                <div id="itemsModeLabel" class="items-mode-label hidden">반납할 물품을 선택해 주세요</div>
+                <div class="actions">
                     <button id="editInfo" class="secondary">취소</button>
+                    <button id="finish" class="btn-primary">완료</button>
                 </div>
             </div>
-            <div style="display: flex; flex-direction: column; height: calc(100vh - 200px);">
-                <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; margin-right: 200px; flex-wrap: wrap;">
-                    <button id="filterAll" class="filter-btn active" data-filter="all" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #617dff; background: #617dff; color: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 600;">전체</button>
-                    <button id="filterBorrow" class="filter-btn" data-filter="borrow" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 0.85rem; font-weight: 600;">대여 가능만</button>
-                    <button id="filterConsume" class="filter-btn" data-filter="consume" style="padding: 6px 14px; border-radius: 8px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 0.85rem; font-weight: 600;">소모품만</button>
-                </div>
-                <div id="itemGrid" class="item-grid" style="flex: 1; max-height: none; overflow-y: auto; margin-top: 20px;"></div>
-                <div id="selectionResult" class="result hidden" style="position: relative; z-index: 100;"></div>
-            </div>
+            <div id="itemGrid" class="item-grid"></div>
+            <div id="selectionResult" class="result hidden"></div>
         </section>
 
         <!-- STEP2 실시간 처리 기록 (왼쪽 하단 고정) -->
-        <div id="logBoard" class="log-board hidden" style="position: fixed; left: 20px; bottom: 20px; width: 350px; height: 300px; max-width: none; z-index: 1100;">
+        <div id="logBoard" class="log-board hidden" style="position: fixed; left: 22px; bottom: calc(var(--marquee-h) + 16px); width: 350px; height: 300px; max-width: none; z-index: 1100;">
             <h3>실시간 처리 기록</h3>
             <ul id="logList">
                 <li>아직 기록이 없습니다.</li>
@@ -207,21 +253,21 @@
         </div>
 
         <!-- 커스텀 확인 대화상자 -->
-        <div id="confirmModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-            <div style="background: #1c1f28; border-radius: 24px; padding: 36px; max-width: 480px; width: 90%; border: 1px solid #2c3242; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6); animation: modalIn 0.2s ease-out;">
-                <div id="confirmIcon" style="text-align: center; font-size: 4rem; margin-bottom: 16px;"></div>
-                <div id="confirmTitle" style="text-align: center; font-size: 1.4rem; font-weight: 700; color: #f4f4f8; margin-bottom: 8px;"></div>
-                <div id="confirmStock" style="text-align: center; font-size: 1rem; color: #9aa9ff; margin-bottom: 20px;"></div>
-                <div id="confirmMessage" style="font-size: 1rem; color: #b5c0d0; line-height: 1.6; white-space: pre-line; margin-bottom: 24px; padding: 16px; background: rgba(255, 255, 255, 0.04); border-radius: 12px; border-left: 3px solid #ffd876;"></div>
-                <div style="display: flex; gap: 12px; justify-content: center;">
-                    <button id="confirmCancel" style="padding: 14px 32px; border-radius: 14px; border: 2px solid #2c3242; background: #252836; color: #f6f7fb; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.2s;">취소</button>
-                    <button id="confirmOk" style="padding: 14px 32px; border-radius: 14px; border: none; background: linear-gradient(135deg, #617dff, #4e5fe5); color: #fff; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.2s;">확인</button>
+        <div id="confirmModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(6, 8, 14, 0.72); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+            <div style="background: var(--surface); border-radius: var(--r-xl); padding: 34px; max-width: 460px; width: 90%; border: 1px solid var(--line); box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6); animation: modalIn 0.2s ease-out;">
+                <div id="confirmIcon" style="text-align: center; font-size: 3rem; margin-bottom: 14px;"></div>
+                <div id="confirmTitle" style="text-align: center; font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 6px; letter-spacing: -0.01em;"></div>
+                <div id="confirmStock" style="text-align: center; font-size: 0.85rem; color: var(--text-2); margin-bottom: 20px;"></div>
+                <div id="confirmMessage" style="font-size: 0.85rem; color: var(--text-2); line-height: 1.65; white-space: pre-line; margin-bottom: 22px; padding: 16px; background: var(--surface-3); border-radius: var(--r-md); border-left: 3px solid var(--amber);"></div>
+                <div style="display: flex; gap: 10px; justify-content: stretch;">
+                    <button id="confirmCancel" class="secondary" style="flex: 1; min-height: 52px; padding: 14px 24px; border-radius: var(--r-md); cursor: pointer; font-size: 0.9rem; font-weight: 700;">취소</button>
+                    <button id="confirmOk" class="btn-primary" style="flex: 1; font-size: 0.9rem;">확인</button>
                 </div>
             </div>
         </div>
 
         <!-- STEP2 사용자 정보 팝업 (왼쪽 상단) -->
-        <div id="userInfoPopup" class="user-info-popup hidden" style="top: 20px; left: 20px;">
+        <div id="userInfoPopup" class="user-info-popup hidden">
             <div id="userInfoCard" class="user-info-card"></div>
         </div>
 
@@ -244,32 +290,32 @@
     </div>
 
     <!-- 개인정보 동의 팝업 -->
-    <div id="privacyModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:100000; display:none; justify-content:center; align-items:center;">
-        <div style="background:#1e293b; border-radius:16px; padding:28px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; color:#e0e0e0; font-size:0.95rem; line-height:1.7;">
-            <h3 style="color:#6cb4d8; margin:0 0 16px; font-size:1.2rem;">개인정보 수집·이용 동의서</h3>
+    <div id="privacyModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(6,8,14,0.72); backdrop-filter:blur(6px); z-index:100000; justify-content:center; align-items:center;">
+        <div style="background:var(--surface); border:1px solid var(--line); border-radius:var(--r-xl); padding:30px; max-width:480px; width:90%; max-height:80vh; overflow-y:auto; color:var(--text-2); font-size:0.82rem; line-height:1.75;">
+            <h3 style="color:var(--text); margin:0 0 16px; font-size:1.05rem; font-weight:700;">개인정보 수집·이용 동의서</h3>
             <p><strong>1. 수집 항목:</strong> 이름, 학번, 전화번호</p>
             <p><strong>2. 수집 목적:</strong> 복지물품 대여·반납 관리, 연체 시 연락</p>
             <p><strong>3. 보유 기간:</strong> 대여 완료(반납) 후 즉시 파기</p>
             <p><strong>4. 동의 거부 시:</strong> 물품 대여 서비스 이용이 제한됩니다.</p>
-            <p style="margin-top:12px; color:#aaa; font-size:0.85rem;">※ 수집된 개인정보는 상기 목적 외에 다른 용도로 사용되지 않습니다.</p>
-            <button id="privacyModalClose" style="margin-top:20px; width:100%; padding:12px; background:#6cb4d8; color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;">확인</button>
+            <p style="margin-top:12px; color:var(--text-3); font-size:0.72rem;">※ 수집된 개인정보는 상기 목적 외에 다른 용도로 사용되지 않습니다.</p>
+            <button id="privacyModalClose" class="btn-primary" style="margin-top:20px; font-size:0.9rem;">확인</button>
         </div>
     </div>
 
     <!-- 관리자 비밀번호 입력 모달 -->
-    <div id="adminPasswordModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:100001; justify-content:center; align-items:flex-start; padding-top:60px;">
-        <div style="background:#1e293b; border-radius:16px; padding:28px; max-width:360px; width:90%; text-align:center;">
-            <h3 id="adminPwTitle" style="color:#6cb4d8; margin:0 0 16px; font-size:1.1rem;">관리자 비밀번호를 입력하세요</h3>
-            <input id="adminPwInput" type="password" autocomplete="off" style="width:100%; padding:14px; font-size:1.1rem; border:2px solid #333; border-radius:10px; background:#0d1117; color:#fff; text-align:center; letter-spacing:8px; box-sizing:border-box;">
+    <div id="adminPasswordModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(6,8,14,0.72); backdrop-filter:blur(6px); z-index:100001; justify-content:center; align-items:flex-start; padding-top:60px;">
+        <div style="background:var(--surface); border:1px solid var(--line); border-radius:var(--r-xl); padding:28px; max-width:360px; width:90%; text-align:center;">
+            <h3 id="adminPwTitle" style="color:var(--text); margin:0 0 16px; font-size:0.95rem; font-weight:700;">관리자 비밀번호를 입력하세요</h3>
+            <input id="adminPwInput" type="password" autocomplete="off" style="text-align:center; letter-spacing:8px;">
             <div style="display:flex; gap:10px; margin-top:16px;">
-                <button id="adminPwCancel" style="flex:1; padding:12px; background:#333; color:#ccc; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">취소</button>
-                <button id="adminPwOk" style="flex:1; padding:12px; background:#6cb4d8; color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;">확인</button>
+                <button id="adminPwCancel" class="secondary" style="flex:1; min-height:52px; padding:14px; border-radius:var(--r-md); font-size:0.9rem; cursor:pointer;">취소</button>
+                <button id="adminPwOk" class="btn-primary" style="flex:1; font-size:0.9rem;">확인</button>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=77"></script>
+    <script src="js/script.js?v=80"></script>
 </body>
 </html>
