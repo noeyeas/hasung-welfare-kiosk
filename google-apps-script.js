@@ -1,12 +1,33 @@
 // Google Apps Script - 복지물품 키오스크 API
 // 이 코드를 Google Apps Script에 붙여넣으세요
 
-var SPREADSHEET_ID = '14ajvLfg_irrWWYJzwe3n85Dug23wYEcUUHzBLzdIdBc';
+// ========================================
+// 설정값은 전부 스크립트 속성에서 읽는다 (레포에 원문 보관 금지)
+// Apps Script 편집기 → 프로젝트 설정 → 스크립트 속성에 아래 4개를 등록:
+//   SPREADSHEET_ID          = 시트 ID
+//   API_KEY                 = 프론트엔드와 공유하는 토큰
+//   ADMIN_PASSWORD_HASH     = 관리자 비밀번호의 sha256 hex
+//   SUPER_ADMIN_PASSWORD_HASH = 상위 관리자 비밀번호의 sha256 hex
+// 해시는 이 스크립트의 printPasswordHash() 를 실행해 구할 수 있다.
+// ========================================
+function prop(name) {
+  return PropertiesService.getScriptProperties().getProperty(name) || '';
+}
+
+function getSpreadsheetId() {
+  var id = prop('SPREADSHEET_ID');
+  if (!id) throw new Error('SPREADSHEET_ID 스크립트 속성이 설정되지 않았습니다');
+  return id;
+}
 
 // 보안: API 키 검증 (간단한 토큰 기반)
-var API_KEY = 'HS_KIOSK_2024_SEC_TOKEN';
-
+// 주의: 프론트엔드가 정적 공개 페이지이므로 이 토큰은 비밀이 아니다.
+// 지나가는 크롤러/타 사이트의 우발적 호출을 막는 1차 관문일 뿐이며,
+// 실제 권한 통제는 아래 verifyAdminAuth(서버측 비밀번호 검증)가 담당한다.
 function verifyApiKey(e) {
+  var expected = prop('API_KEY');
+  if (!expected) return false; // 미설정 시 전면 차단 (fail-closed)
+
   var key = '';
   if (e && e.parameter && e.parameter.key) {
     key = e.parameter.key;
@@ -18,16 +39,29 @@ function verifyApiKey(e) {
       // ignore
     }
   }
-  return key === API_KEY;
+  return safeEquals(key, expected);
+}
+
+// 길이·내용 노출을 줄이는 상수시간 비교
+function safeEquals(a, b) {
+  a = String(a);
+  b = String(b);
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 // 보안: 비밀번호 시도 횟수 제한 (rate limiting)
-function checkRateLimit(action) {
+function checkRateLimit(action, limit) {
+  var max = limit || 30; // 기본: 60초 내 30회
   var cache = CacheService.getScriptCache();
   var key = 'ratelimit_' + action;
   var count = parseInt(cache.get(key) || '0');
-  if (count >= 30) {
-    return false; // 60초 내 30회 초과 시 차단
+  if (count >= max) {
+    return false;
   }
   cache.put(key, String(count + 1), 60); // 60초 TTL
   return true;
@@ -49,20 +83,30 @@ function sha256Hex(str) {
   return hex;
 }
 
-// 관리자 비밀번호 해시(SHA-256)는 스크립트 속성에 저장 (레포에 원문/해시 보관 안 함)
-// 설정 방법: Apps Script 편집기 → 프로젝트 설정 → 스크립트 속성 → ADMIN_PASSWORD_HASH = <비밀번호의 sha256 hex>
-function getAdminHash() {
-  return PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD_HASH') || '';
+// 비밀번호 해시 설정용 헬퍼 — Apps Script 편집기에서 직접 실행해 결과를 로그로 확인한 뒤,
+// 그 값을 스크립트 속성(ADMIN_PASSWORD_HASH / SUPER_ADMIN_PASSWORD_HASH)에 붙여넣는다.
+// 실행 후에는 아래 문자열을 반드시 지울 것.
+function printPasswordHash() {
+  Logger.log(sha256Hex('여기에_새_비밀번호_입력'));
 }
 
 // 파괴적 작업(전체 저장/복원)에 대해 관리자 비밀번호 검증
-// ADMIN_PASSWORD_HASH 미설정 시에는 하위 호환을 위해 통과(API_KEY만으로 허용)
+// 해시 미설정 시 거부 (fail-closed) — 예전의 "미설정이면 통과" 경로는 인증을 무력화시켜 제거
 function verifyAdminAuth(params) {
-  var adminHash = getAdminHash();
-  if (!adminHash) return true; // 미구성 상태: 기존 동작 유지
-  var pw = params && params.adminPassword ? String(params.adminPassword) : '';
+  return verifyPasswordAgainst('ADMIN_PASSWORD_HASH', params && params.adminPassword);
+}
+
+// 상위 관리자 검증
+function verifySuperAdminAuth(params) {
+  return verifyPasswordAgainst('SUPER_ADMIN_PASSWORD_HASH', params && params.adminPassword);
+}
+
+function verifyPasswordAgainst(propName, password) {
+  var expected = prop(propName);
+  if (!expected) return false;
+  var pw = password ? String(password) : '';
   if (!pw) return false;
-  return sha256Hex(pw) === adminHash;
+  return safeEquals(sha256Hex(pw), expected);
 }
 
 // 대여 시트 헤더 (id 컬럼 포함 - 로그/정렬용, 하위호환: 기존 행은 id 공란)
@@ -150,7 +194,7 @@ function isValidBorrowRecord(r) {
 }
 
 function getSheet(name) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = SpreadsheetApp.openById(getSpreadsheetId());
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
@@ -249,8 +293,22 @@ function doPost(e) {
   }
 
   // 보안: API 키 검증
-  if (params.key !== API_KEY) {
+  if (!verifyApiKey(e)) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 보안: 비밀번호 검증 요청은 별도의 엄격한 rate limit (무차별 대입 차단)
+  // 시트 잠금·기타 처리 이전에 응답하므로 doPost 본류와 분리해 먼저 처리
+  if (params.action === 'verifyAdmin' || params.action === 'verifySuperAdmin') {
+    if (!checkRateLimit('pwcheck', 10)) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Rate limit exceeded' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var ok = params.action === 'verifyAdmin'
+      ? verifyAdminAuth(params)
+      : verifySuperAdminAuth(params);
+    return ContentService.createTextOutput(JSON.stringify({ success: true, valid: ok }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 

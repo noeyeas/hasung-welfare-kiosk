@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { User } from '../types'
 import { validateUser } from '../utils/validation'
-import { ADMIN_PASSWORD, AUTO_LOGOUT_TIMEOUT } from '../utils/constants'
+import { AUTO_LOGOUT_TIMEOUT } from '../utils/constants'
 import { useItemStore } from './itemStore'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -43,12 +43,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 관리자 로그인
-  function adminLogin(password: string): boolean {
-    if (password !== ADMIN_PASSWORD) {
-      throw new Error('비밀번호가 올바르지 않습니다')
-    }
-    isAdmin.value = true
-    return true
+  // 평문 비밀번호 비교는 제거됨 — v2 에는 아직 서버 연동 계층이 없으므로 인증은 fail-closed 상태다.
+  // TODO: 루트 앱(js/script.js)의 verifyPasswordOnServer 와 동일하게 Apps Script 의
+  //       doPost verifyAdmin 액션을 호출하도록 API 계층을 추가한 뒤 이 함수를 async 로 전환할 것.
+  function adminLogin(_password: string): boolean {
+    throw new Error('관리자 인증이 아직 서버와 연결되지 않았습니다')
   }
 
   // 관리자 로그아웃

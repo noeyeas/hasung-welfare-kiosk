@@ -1,7 +1,8 @@
 // 상수 정의
 import type { Item } from '../types'
 
-export const ADMIN_PASSWORD: string = '041104'
+// 관리자 비밀번호는 클라이언트에 두지 않는다 — 검증은 Apps Script 서버에서 수행한다.
+// (스크립트 속성 ADMIN_PASSWORD_HASH 와 doPost 의 verifyAdmin 액션 참고)
 
 // 허용된 학과 식별번호
 // 신입생: 402-컴정공, 403-소프트, 404-정융, 405/406-로봇

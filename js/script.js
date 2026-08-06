@@ -90,7 +90,10 @@ function showPasswordPrompt(title) {
 // Google Sheets API 설정
 // ========================================
 var API_URL = 'https://script.google.com/macros/s/AKfycbxnduzDbTqcdb8c0WH06vpiRl9E2SZVF1SoQ95IlLaveD048gaZu-nJbE55Ih9r1FAU4g/exec';
-var API_KEY = 'HS_KIOSK_2024_SEC_TOKEN';
+// 주의: 정적 공개 페이지이므로 이 토큰은 비밀이 아니다(누구나 읽을 수 있음).
+// 우발적 외부 호출을 거르는 1차 관문일 뿐이며, 실제 권한 통제는 서버측 관리자 비밀번호 검증이 담당한다.
+// 값 변경 시 Apps Script 스크립트 속성의 API_KEY 도 반드시 동일하게 갱신할 것.
+var API_KEY = 'HS_KIOSK_2026_ROTATED_TOKEN';
 
 // API GET 요청 헬퍼
 function apiGet(action, callback) {
@@ -685,100 +688,43 @@ window.importBackup = importBackup;
 window.selectAndImportBackup = selectAndImportBackup;
 
 // ========================================
-// 보안: 비밀번호 해싱 함수
+// 보안: 관리자 인증 (서버 검증 전용)
 // ========================================
-// 간단한 해시 함수 (crypto.subtle 없는 환경용 폴백)
-function simpleHash(str) {
-  var hash = 0;
-  for (var i = 0; i < str.length; i++) {
-    var _char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + _char;
-    hash = hash & hash;
-  }
-  return hash.toString(16);
-}
-var hashPassword = /*#__PURE__*/function () {
-  var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(password) {
-    var encoder, data, hashBuffer, hashArray, hashHex;
-    return _regenerator().w(function (_context7) {
-      while (1) switch (_context7.n) {
-        case 0:
-          if (!(typeof crypto !== 'undefined' && crypto.subtle)) {
-            _context7.n = 2;
-            break;
-          }
-          encoder = new TextEncoder();
-          data = encoder.encode(password);
-          _context7.n = 1;
-          return crypto.subtle.digest('SHA-256', data);
-        case 1:
-          hashBuffer = _context7.v;
-          hashArray = Array.from(new Uint8Array(hashBuffer));
-          hashHex = hashArray.map(function (b) {
-            return b.toString(16).padStart(2, '0');
-          }).join('');
-          return _context7.a(2, hashHex);
-        case 2:
-          // 보안 컨텍스트(crypto.subtle)가 없으면 약한 32비트 해시로 폴백하지 않고 인증 거부
-          // (약한 해시는 충돌 위조가 쉬워 관리자 우회에 악용될 수 있음)
-          return _context7.a(2, null);
+// 비밀번호 해시를 클라이언트에 두면 정적 페이지에서 그대로 읽혀 무차별 대입이 가능하므로
+// 검증은 전적으로 Apps Script 서버(스크립트 속성의 해시)에 맡긴다.
+// 그 결과 오프라인 상태에서는 관리자 모드 진입이 불가능하다(일반 대여/반납은 로컬 동작 유지).
+function verifyPasswordOnServer(action, inputPassword) {
+  return new Promise(function (resolve) {
+    if (!inputPassword) {
+      resolve(false);
+      return;
+    }
+    apiPost({ action: action, adminPassword: inputPassword }, function (err, resp) {
+      if (err) {
+        // 네트워크 실패를 인증 성공으로 착각하지 않도록 명시적으로 거부
+        alert('서버에 연결할 수 없어 관리자 인증을 진행할 수 없습니다. 네트워크를 확인해 주세요.');
+        resolve(false);
+        return;
       }
-    }, _callee7);
-  }));
-  return function hashPassword(_x4) {
-    return _ref7.apply(this, arguments);
-  };
-}();
+      resolve(!!(resp && resp.success && resp.valid));
+    });
+  });
+}
 
-// 관리자 비밀번호 해시 (SHA-256) - 비밀번호 원문 노출 방지
-var ADMIN_PASSWORD_HASH = "de6d045537291b8c8762940084f51bd3d02055d5cbc250e6d2fc6ddb09d88325";
-var ADMIN_PASSWORD_SIMPLE_HASH = "54dc6828";
+function verifyAdminPassword(inputPassword) {
+  return verifyPasswordOnServer('verifyAdmin', inputPassword);
+}
+
+function verifySuperAdminPassword(inputPassword) {
+  return verifyPasswordOnServer('verifySuperAdmin', inputPassword);
+}
+
+// 관리자 비밀번호 해시는 클라이언트에 두지 않는다.
+// (검증은 위쪽 verifyAdminPassword / verifySuperAdminPassword → Apps Script 서버에서 수행)
 
 // 관리자 로그인 성공 시 입력한 비밀번호를 메모리에만 보관 (서버측 파괴적 작업 인증에 사용)
 // 저장/전송하지 않으며 로그아웃·화면 이탈 시 즉시 폐기
 var adminAuthPassword = null;
-
-// 비밀번호 검증 함수
-var verifyAdminPassword = /*#__PURE__*/function () {
-  var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(inputPassword) {
-    var inputHash;
-    return _regenerator().w(function (_context8) {
-      while (1) switch (_context8.n) {
-        case 0:
-          _context8.n = 1;
-          return hashPassword(inputPassword);
-        case 1:
-          inputHash = _context8.v;
-          return _context8.a(2, inputHash !== null && inputHash === ADMIN_PASSWORD_HASH);
-      }
-    }, _callee8);
-  }));
-  return function verifyAdminPassword(_x5) {
-    return _ref8.apply(this, arguments);
-  };
-}();
-
-// 추가 관리자 모드 비밀번호 해시 (원문 노출 방지)
-var SUPER_ADMIN_SHA256_HASH = "a3cdb037448fc2bfde78fde5f165480c8ba82451899fa593de0ac2b155a66199";
-var SUPER_ADMIN_SIMPLE_HASH = "-71c82a55";
-var verifySuperAdminPassword = /*#__PURE__*/function () {
-  var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(inputPassword) {
-    var inputHash;
-    return _regenerator().w(function (_context9) {
-      while (1) switch (_context9.n) {
-        case 0:
-          _context9.n = 1;
-          return hashPassword(inputPassword);
-        case 1:
-          inputHash = _context9.v;
-          return _context9.a(2, inputHash !== null && inputHash === SUPER_ADMIN_SHA256_HASH);
-      }
-    }, _callee9);
-  }));
-  return function verifySuperAdminPassword(_x6) {
-    return _ref9.apply(this, arguments);
-  };
-}();
 
 // ========================================
 // 입력값 검증 함수 (보안 강화)
