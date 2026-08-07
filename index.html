@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=79">
+    <link rel="stylesheet" href="css/styles.css?v=80">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -303,6 +303,8 @@
 
         <section id="step-items" class="hidden">
             <div class="items-toolbar">
+                <!-- 대여자 정보 — 떠 있는 카드 대신 툴바 안에 칩으로 둔다 -->
+                <div id="userChips" class="user-chips"></div>
                 <div class="filter-row" id="filterRow">
                     <button id="filterAll" class="filter-btn active" data-filter="all">전체</button>
                     <button id="filterBorrow" class="filter-btn" data-filter="borrow">대여 가능만</button>
@@ -338,11 +340,6 @@
                     <button id="confirmOk" class="btn-primary" style="flex: 1; font-size: 0.9rem;">확인</button>
                 </div>
             </div>
-        </div>
-
-        <!-- STEP2 사용자 정보 팝업 (왼쪽 상단) -->
-        <div id="userInfoPopup" class="user-info-popup hidden">
-            <div id="userInfoCard" class="user-info-card"></div>
         </div>
 
     </section>
@@ -390,6 +387,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=86"></script>
+    <script src="js/script.js?v=87"></script>
 </body>
 </html>

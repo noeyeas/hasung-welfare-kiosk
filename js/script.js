@@ -1207,8 +1207,7 @@ var saveData = /*#__PURE__*/function () {
     return _ref14.apply(this, arguments);
   };
 }();
-var userInfoPopup = document.getElementById("userInfoPopup");
-var userInfoCard = document.getElementById("userInfoCard");
+var userChips = document.getElementById("userChips");
 var logBoard = document.getElementById("logBoard");
 var brandLogo = document.getElementById("brandLogo");
 
@@ -1278,7 +1277,6 @@ var showStep = function showStep(step) {
   stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
   stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
   stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
-  if (userInfoPopup) userInfoPopup.classList.add("hidden");
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
   // 화면을 옮기면 숫자 키패드는 항상 닫는다.
@@ -1312,12 +1310,8 @@ var showStep = function showStep(step) {
     renderItems();
     if (logBoard) logBoard.classList.add("hidden");
     if (brandLogo) brandLogo.classList.remove("hidden");
-    if (userInfoPopup) {
-      userInfoPopup.classList.remove("hidden");
-      // 위치는 CSS(.user-info-popup)가 정한다 — 헤더 아래에서 시작
-      userInfoPopup.style.top = '';
-      userInfoPopup.style.left = '';
-    }
+    // 대여자 정보는 툴바 칩(#userChips)으로 보여준다.
+    // 떠 있던 카드(#userInfoPopup)는 화면이 좁을 때 물품 카드를 덮어서 더 이상 띄우지 않는다.
     // 자동 로그아웃 타이머 시작
     if (typeof resetAutoLogout === 'function') {
       resetAutoLogout();
@@ -2183,8 +2177,16 @@ form.addEventListener("submit", function (event) {
       '<li>물품 분실·파손 시 동일 제품으로 변상</li>' +
       '</ul>';
   }
-  if (userInfoCard) {
-    userInfoCard.innerHTML = userInfoHtml;
+  // 툴바 칩 — 물품 선택 화면에서 상시 보이는 요약.
+  // 상세 안내(벌금·변상 조건)는 완료 화면 요약(summaryBox)에 그대로 남는다.
+  if (userChips) {
+    var chipsHtml = '<span class="user-chip"><b>' + escapeHtml(name) + '</b> ' + escapeHtml(studentId) + '</span>';
+    if (flowMode === 'return') {
+      chipsHtml += '<span class="user-chip is-return">반납 진행 중</span>';
+    } else {
+      chipsHtml += '<span class="user-chip is-due">반납 ' + escapeHtml(currentDueInfo.label) + '</span>';
+    }
+    userChips.innerHTML = chipsHtml;
   }
   if (summaryBox) {
     summaryBox.innerHTML = userInfoHtml;
@@ -2198,7 +2200,7 @@ var debounceTime = 400; // 400ms
 
 itemGrid.addEventListener("click", /*#__PURE__*/function () {
   var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(event) {
-    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
+    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, noticeLines, _dueForNotice, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
     return _regenerator().w(function (_context16) {
       while (1) switch (_context16.n) {
         case 0:
@@ -2257,18 +2259,25 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
           return _context16.a(2);
         case 6:
-          // 주의사항 메시지 구성
-          noticeMsg = '';
+          // 주의사항 메시지 구성. 예전에는 떠 있는 정보 카드에 상시 표시했지만
+          // 화면을 가렸고, 정작 필요한 시점은 빌리는 순간이므로 이 확인 창으로 옮겼다.
+          _dueForNotice = currentDueInfo || getDueInfo();
+          noticeLines = [];
           if (item.notice && item.notice.trim()) {
-            noticeMsg = "\u26A0\uFE0F \uC8FC\uC758\uC0AC\uD56D: ".concat(item.notice);
+            noticeLines.push("⚠️ ".concat(item.notice));
           }
+          noticeLines.push("📅 반납 기한: ".concat(_dueForNotice.label));
+          noticeLines.push("💸 기한 초과 시 1일당 2,000원 (주말 포함)");
+          noticeLines.push(_dueForNotice.isWeekendPenalty ? "주말에도 벌금이 부과됩니다." : "금요일 대여는 다음 주 월요일 18:00까지 반납");
+          noticeLines.push("🔧 분실·파손 시 동일 제품으로 변상");
+          noticeMsg = noticeLines.join(String.fromCharCode(10));
           _context16.n = 7;
           return showConfirm({
             icon: item.icon || '📦',
             title: "".concat(item.name, " \uB300\uC5EC"),
             stock: item.stock,
-            message: noticeMsg || '대여 후 기한 내 반납해주세요.',
-            autoClose: 3000
+            message: noticeMsg,
+            autoClose: 4500
           });
         case 7:
           dueInfo = currentDueInfo || getDueInfo();
@@ -3213,7 +3222,6 @@ function makeDraggable(cardElement) {
 }
 
 // 모든 팝업에 드래그 기능 적용
-makeDraggable(userInfoCard);
 
 // 헤더 시계
 var headerClock = document.getElementById("headerClock");

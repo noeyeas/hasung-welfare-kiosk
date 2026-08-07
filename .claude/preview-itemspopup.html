@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>물품 선택 화면 · 정보 팝업 배치 비교</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+/* 미리보기 전용 껍데기 — 실제 앱에는 들어가지 않는다 */
+html, body { position: static !important; overflow: auto !important; height: auto !important; max-height: none !important; }
+body { display: block; padding: 0; }
+.pv-bar {
+    position: sticky; top: 0; z-index: 9000;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 14px 18px; background: #0f1220; border-bottom: 1px solid var(--line);
+}
+.pv-bar h2 { margin: 0 14px 0 0; font-size: 0.85rem; color: var(--text); }
+.pv-bar button {
+    font-family: inherit; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    padding: 10px 16px; border-radius: var(--r-md);
+    background: var(--surface-3); color: var(--text-2); border: 1px solid var(--line);
+}
+.pv-bar button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pv-note { font-size: 0.68rem; color: var(--text-3); padding: 10px 18px 0; }
+.pv-width { font-size: 0.68rem; color: var(--text-3); margin-left: auto; }
+
+/* 실제 화면과 같은 조건을 만들기 위한 뷰포트 흉내 */
+.pv-stage {
+    position: relative;
+    margin: 14px auto 40px;
+    height: 760px;
+    border: 1px dashed var(--line);
+    overflow: hidden;
+    background:
+        radial-gradient(900px 520px at 22% -10%, rgba(108, 124, 255, 0.16) 0%, transparent 60%),
+        var(--bg);
+}
+.pv-stage .kiosk { height: calc(100% - 36px); margin: 18px auto; }
+/* 스테이지 안에서 fixed 를 흉내내기 위해 absolute 로 바꾼다 */
+.pv-stage .user-info-popup { position: absolute; }
+
+/* ---- 방식 B: 왼쪽 열로 편입 ---- */
+.pv-stage.mode-b #step-items { flex-direction: row; gap: 22px; }
+.pv-stage.mode-b .pv-items-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pv-stage.mode-b .user-info-popup {
+    position: static; flex: 0 0 300px; pointer-events: auto;
+}
+.pv-stage.mode-b .user-info-popup .user-info-card {
+    width: 100%; max-width: none; cursor: default; position: sticky; top: 0;
+}
+.pv-stage.mode-b .user-info-popup .user-info-card::before { content: none; }
+
+/* ---- 방식 C: 본문에 왼쪽 여백만 확보 ---- */
+.pv-stage.mode-c .kiosk { margin-left: 372px; width: calc(100% - 394px); }
+
+/* ---- 방식 D: 상단 요약 바 (가로) ---- */
+.pv-summary, .pv-toolbar-chips { display: none; }
+.pv-stage.mode-d .user-info-popup { display: none; }
+.pv-stage.mode-d .pv-summary { display: flex; }
+.pv-summary {
+    align-items: center; flex-wrap: wrap; gap: 8px 16px;
+    padding: 12px 16px; margin-bottom: 16px; flex-shrink: 0;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg);
+}
+.pv-summary .pv-who { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+.pv-summary .pv-meta { font-size: 0.75rem; color: var(--text-3); }
+.pv-summary .pv-due {
+    font-size: 0.75rem; font-weight: 600; color: var(--amber);
+    background: var(--amber-soft); border: 1px solid rgba(245, 178, 92, 0.3);
+    border-radius: 999px; padding: 6px 12px;
+}
+.pv-summary .pv-warn { font-size: 0.7rem; color: var(--text-3); margin-left: auto; }
+
+/* ---- 방식 E: 기존 툴바에 통합 (요소 추가 없음) ---- */
+.pv-stage.mode-e .user-info-popup { display: none; }
+.pv-stage.mode-e .pv-toolbar-chips { display: flex; }
+.pv-toolbar-chips { align-items: center; gap: 10px; flex-wrap: wrap; }
+.pv-toolbar-chips .pv-chip {
+    font-size: 0.72rem; color: var(--text-2);
+    background: var(--surface-3); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 14px; white-space: nowrap;
+}
+.pv-toolbar-chips .pv-chip b { color: var(--text); font-weight: 700; }
+.pv-toolbar-chips .pv-chip.is-due { color: var(--amber); border-color: rgba(245, 178, 92, 0.3); }
+/* 툴바가 3단이 되므로 필터 줄과 겹치지 않게 줄바꿈 허용 */
+.pv-stage.mode-e .items-toolbar { row-gap: 12px; }
+</style>
+</head>
+<body>
+
+<div class="pv-bar">
+    <h2>물품 선택 화면 · 정보 팝업 배치</h2>
+    <button data-mode="a" class="active">A. 현재 (겹침)</button>
+    <button data-mode="b">B. 왼쪽 열로 편입</button>
+    <button data-mode="c">C. 여백만 확보</button>
+    <button data-mode="d">D. 상단 요약 바</button>
+    <button data-mode="e">E. 툴바에 통합</button>
+    <span class="pv-width">폭: <b id="pvW">1400</b>px &nbsp;
+        <input id="pvRange" type="range" min="900" max="1920" value="1400" style="vertical-align: middle;">
+    </span>
+</div>
+<p class="pv-note">
+    가로 폭을 줄여보면 A 에서 팝업이 물품 카드를 덮는 게 보입니다. 1920px 처럼 넓을 때는 A 도 안 겹칩니다.
+</p>
+
+<div class="pv-stage mode-a" id="stage" style="width: 1400px;">
+    <section class="kiosk">
+        <div class="step-indicator">
+            <div class="step-dot done" data-step="user"><span class="step-num">1</span>정보 입력</div>
+            <div class="step-line"></div>
+            <div class="step-dot active" data-step="items"><span class="step-num">2</span>물품 선택</div>
+        </div>
+
+        <section id="step-items">
+            <div class="pv-items-main">
+                <!-- 방식 D -->
+                <div class="pv-summary">
+                    <span class="pv-who">홍길동</span>
+                    <span class="pv-meta">2021123456 · 010-1234-5678</span>
+                    <span class="pv-due">반납 8/8(토) 18:00</span>
+                    <span class="pv-warn">연체 시 1일당 2,000원 · 분실 시 학생회로 연락</span>
+                </div>
+
+                <div class="items-toolbar">
+                    <!-- 방식 E -->
+                    <div class="pv-toolbar-chips">
+                        <span class="pv-chip"><b>홍길동</b> 2021123456</span>
+                        <span class="pv-chip is-due">반납 8/8(토) 18:00</span>
+                    </div>
+                    <div class="filter-row">
+                        <button class="filter-btn active">전체</button>
+                        <button class="filter-btn">대여 가능만</button>
+                        <button class="filter-btn">소모품만</button>
+                    </div>
+                    <div class="actions">
+                        <button class="secondary">← 뒤로</button>
+                        <button class="btn-primary">완료하기</button>
+                    </div>
+                </div>
+                <div class="item-grid" id="grid"></div>
+            </div>
+
+            <div class="user-info-popup" id="userInfoPopup">
+                <div class="user-info-card">
+                    <strong>홍길동 (2021123456)</strong><br>
+                    010-1234-5678<br>
+                    반납 기한: <span style="color:#ff7a7a;font-weight:600;">8/8(토) 18:00</span>
+                    <ul>
+                        <li>기한 내 반납해 주세요</li>
+                        <li>연체 시 1일당 2,000원</li>
+                        <li>분실 시 학생회로 연락</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </section>
+</div>
+
+<script>
+var ITEMS = [
+    ['🌂','우산','재고 12개'], ['🔋','보조배터리','재고 5개'], ['🩹','구급상자','재고 3개'],
+    ['🧵','반짇고리','재고 7개'], ['🔌','멀티탭','재고 2개'], ['✂️','가위','재고 9개'],
+    ['📏','자','재고 14개'], ['🖊️','볼펜','소모품 · 재고 40개'], ['🧻','물티슈','소모품 · 재고 25개']
+];
+document.getElementById('grid').innerHTML = ITEMS.map(function (it) {
+    return '<div class="item-card">' +
+        '<span style="font-size:2.5rem;flex-shrink:0;">' + it[0] + '</span>' +
+        '<div class="item-card-info"><strong>' + it[1] + '</strong><small>' + it[2] + '</small></div>' +
+        '<div class="item-card-actions">' +
+            '<button class="borrow">대여하기</button>' +
+            '<button class="secondary">반납하기</button>' +
+        '</div></div>';
+}).join('');
+
+var stage = document.getElementById('stage');
+document.querySelectorAll('.pv-bar button[data-mode]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('.pv-bar button[data-mode]').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        stage.className = 'pv-stage mode-' + btn.getAttribute('data-mode');
+    });
+});
+var range = document.getElementById('pvRange');
+range.addEventListener('input', function () {
+    stage.style.width = range.value + 'px';
+    document.getElementById('pvW').textContent = range.value;
+});
+</script>
+</body>
+</html>
