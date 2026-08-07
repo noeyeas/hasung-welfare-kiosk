@@ -3269,10 +3269,9 @@ var openNumPad = function openNumPad(input) {
   if (numPadLabel) numPadLabel.textContent = label ? label.textContent : "숫자 입력";
   numPad.classList.remove("hidden");
   document.body.classList.add("numpad-open");
-  // 키패드에 가려지지 않도록 입력칸을 보이는 위치로 끌어올린다
-  if (input.scrollIntoView) {
-    input.scrollIntoView({ block: "center" });
-  }
+  // 예전에 키패드가 화면 하단에 고정돼 있을 때는 입력칸이 가려져서
+  // scrollIntoView 로 끌어올렸다. 지금은 키패드가 폼 옆에 있어 가리지
+  // 않으므로, 자동 스크롤은 화면만 움직여 거슬린다. 넣지 않는다.
 };
 
 // 키패드 입력을 실제 입력칸에 반영. maxlength 를 넘기지 않고,

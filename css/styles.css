@@ -1621,3 +1621,42 @@ body.hanpad-open .user-layout {
 .items-toolbar {
     row-gap: 12px;
 }
+
+/* 화면이 낮으면(태블릿 가로 등) 정보 입력 화면이 넘쳐 스크롤이 생긴다.
+   키패드를 상시 표시하면서 세로 여유가 줄었으므로 간격을 죄어 한 화면에 담는다. */
+@media (max-height: 820px) {
+    .step-head {
+        margin-bottom: 14px;
+    }
+    .step-head .ghost-btn {
+        margin-bottom: 10px;
+    }
+    .step-head h1 {
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+    }
+    .step-head p {
+        font-size: 0.72rem;
+    }
+    #step-user form {
+        gap: 10px;
+    }
+    #step-user form input,
+    #step-user form select {
+        padding: 10px 14px;
+    }
+    .user-layout {
+        gap: 16px;
+    }
+    .numpad,
+    .hanpad {
+        padding: 10px;
+    }
+    .numpad-head {
+        margin-bottom: 8px;
+    }
+    .numpad-key,
+    .hanpad-key {
+        min-height: 44px;
+    }
+}
