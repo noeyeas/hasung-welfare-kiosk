@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=82">
+    <link rel="stylesheet" href="css/styles.css?v=83">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -233,7 +233,6 @@
         <div id="numPad" class="numpad hidden" role="group" aria-label="숫자 키패드">
             <div class="numpad-head">
                 <span id="numPadLabel" class="numpad-label"></span>
-                <button type="button" id="numPadClose" class="numpad-close">닫기</button>
             </div>
             <div class="numpad-keys">
                 <button type="button" class="numpad-key" data-key="1">1</button>
@@ -255,46 +254,45 @@
         <div id="hanPad" class="hanpad hidden" role="group" aria-label="한글 키패드">
             <div class="numpad-head">
                 <span id="hanPadLabel" class="numpad-label">이름</span>
-                <button type="button" id="hanPadClose" class="numpad-close">닫기</button>
             </div>
             <div class="hanpad-rows">
                 <div class="hanpad-row">
-                    <button type="button" class="hanpad-key" data-jamo="ㅂ" data-shift="ㅃ">ㅂ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅈ" data-shift="ㅉ">ㅈ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㄷ" data-shift="ㄸ">ㄷ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㄱ" data-shift="ㄲ">ㄱ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅅ" data-shift="ㅆ">ㅅ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅛ">ㅛ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅕ">ㅕ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅑ">ㅑ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅐ" data-shift="ㅒ">ㅐ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅔ" data-shift="ㅖ">ㅔ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅂ" data-en="q" data-shift="ㅃ">ㅂ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅈ" data-en="w" data-shift="ㅉ">ㅈ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄷ" data-en="e" data-shift="ㄸ">ㄷ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄱ" data-en="r" data-shift="ㄲ">ㄱ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅅ" data-en="t" data-shift="ㅆ">ㅅ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅛ" data-en="y">ㅛ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅕ" data-en="u">ㅕ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅑ" data-en="i">ㅑ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅐ" data-en="o" data-shift="ㅒ">ㅐ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅔ" data-en="p" data-shift="ㅖ">ㅔ</button>
                 </div>
                 <div class="hanpad-row">
-                    <button type="button" class="hanpad-key" data-jamo="ㅁ">ㅁ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㄴ">ㄴ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅇ">ㅇ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㄹ">ㄹ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅎ">ㅎ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅗ">ㅗ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅓ">ㅓ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅏ">ㅏ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅣ">ㅣ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅁ" data-en="a">ㅁ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄴ" data-en="s">ㄴ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅇ" data-en="d">ㅇ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄹ" data-en="f">ㄹ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅎ" data-en="g">ㅎ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅗ" data-en="h">ㅗ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅓ" data-en="j">ㅓ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅏ" data-en="k">ㅏ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅣ" data-en="l">ㅣ</button>
                 </div>
                 <div class="hanpad-row">
                     <button type="button" class="hanpad-key is-mod" id="hanShift">쌍자음</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅋ">ㅋ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅌ">ㅌ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅊ">ㅊ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅍ">ㅍ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅠ">ㅠ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅜ">ㅜ</button>
-                    <button type="button" class="hanpad-key" data-jamo="ㅡ">ㅡ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅋ" data-en="z">ㅋ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅌ" data-en="x">ㅌ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅊ" data-en="c">ㅊ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅍ" data-en="v">ㅍ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅠ" data-en="b">ㅠ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅜ" data-en="n">ㅜ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅡ" data-en="m">ㅡ</button>
                     <button type="button" class="hanpad-key is-muted" data-han="back">← 지우기</button>
                 </div>
                 <div class="hanpad-row">
                     <button type="button" class="hanpad-key is-muted is-wide" data-han="clear">전체 지우기</button>
-                    <button type="button" class="hanpad-key is-muted is-wide" data-han="space">공백</button>
+                    <button type="button" class="hanpad-key is-muted is-wide" id="hanLangToggle" data-han="lang">한/영</button>
                 </div>
             </div>
         </div>
@@ -387,6 +385,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=92"></script>
+    <script src="js/script.js?v=93"></script>
 </body>
 </html>

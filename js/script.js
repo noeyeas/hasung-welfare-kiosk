@@ -1449,6 +1449,8 @@ var showStep = function showStep(step) {
       _kiosk2.style.marginLeft = '';
       _kiosk2.style.width = '';
     }
+    // 정보 입력 화면에서는 키패드를 처음부터 띄워 둔다
+    if (typeof openDefaultPad === "function") openDefaultPad();
   }
 };
 var renderAdminData = function renderAdminData() {
@@ -3336,19 +3338,14 @@ if (numPadCloseBtn) {
   numPadCloseBtn.addEventListener("click", closeNumPad);
 }
 
-// 대상 입력칸에 포커스가 가면 열고, 다른 곳으로 나가면 닫는다
+// 숫자 칸을 누르면 숫자 키패드로 전환한다. 키패드는 항상 떠 있으므로 닫지 않는다.
 ["studentId", "phone"].forEach(function (id) {
   var input = document.getElementById(id);
   if (!input) return;
   input.addEventListener("focus", function () {
+    if (typeof closeHanPad === "function") closeHanPad();
     openNumPad(input);
   });
-});
-document.addEventListener("focusin", function (e) {
-  if (!numPadTarget) return;
-  if (e.target === numPadTarget) return;
-  if (numPad && numPad.contains(e.target)) return;
-  closeNumPad();
 });
 
 // ========================================
@@ -3499,15 +3496,40 @@ var hanPadCloseBtn = document.getElementById("hanPadClose");
 var hanShiftBtn = document.getElementById("hanShift");
 var hanShiftOn = false;
 
-var setHanShift = function setHanShift(on) {
-  hanShiftOn = on;
+// 입력 모드: 'ko'(두벌식 조합) 또는 'en'(영문 직접 입력)
+var hanMode = 'ko';
+
+// 키 라벨을 현재 모드·시프트 상태에 맞게 다시 그린다
+var renderHanKeys = function renderHanKeys() {
   if (!hanPad) return;
-  if (hanShiftBtn) hanShiftBtn.classList.toggle("is-active", on);
+  if (hanShiftBtn) {
+    hanShiftBtn.classList.toggle("is-active", hanShiftOn);
+    hanShiftBtn.textContent = hanMode === 'en' ? '대문자' : '쌍자음';
+  }
   var keys = hanPad.querySelectorAll(".hanpad-key[data-jamo]");
   Array.prototype.forEach.call(keys, function (key) {
-    var shifted = key.getAttribute("data-shift");
-    key.textContent = on && shifted ? shifted : key.getAttribute("data-jamo");
+    if (hanMode === 'en') {
+      var en = key.getAttribute("data-en") || '';
+      key.textContent = hanShiftOn ? en.toUpperCase() : en;
+    } else {
+      var shifted = key.getAttribute("data-shift");
+      key.textContent = hanShiftOn && shifted ? shifted : key.getAttribute("data-jamo");
+    }
   });
+};
+
+var setHanShift = function setHanShift(on) {
+  hanShiftOn = on;
+  renderHanKeys();
+};
+
+var setHanMode = function setHanMode(mode) {
+  // 모드를 바꾸기 전에 조합 중이던 글자를 확정한다 (ㄱ 만 눌린 상태 등)
+  commitHanState();
+  syncHanInput();
+  hanMode = mode;
+  hanShiftOn = false;
+  renderHanKeys();
 };
 
 var closeHanPad = function closeHanPad() {
@@ -3548,10 +3570,18 @@ if (hanPad) {
       syncHanInput();
       return;
     }
-    if (action === "space") {
+    if (action === "lang") {
+      setHanMode(hanMode === 'ko' ? 'en' : 'ko');
+      return;
+    }
+    if (hanMode === 'en') {
+      // 영문은 조합이 없으므로 글자를 그대로 덧붙인다
+      var en = key.getAttribute("data-en");
+      if (!en) return;
       commitHanState();
-      hanCommitted += " ";
+      hanCommitted += hanShiftOn ? en.toUpperCase() : en;
       syncHanInput();
+      if (hanShiftOn) setHanShift(false);
       return;
     }
     var jamo = key.getAttribute("data-jamo");
@@ -3572,8 +3602,29 @@ if (hanPadCloseBtn) {
 }
 
 var nameInput = document.getElementById("name");
+
+// OS 가상 키보드 차단.
+// inputmode="none" 만으로는 무시하는 기기가 있어 readonly 를 함께 건다.
+// readonly 여도 포커스·선택은 되고 값은 스크립트로 넣으므로 키패드 입력에 지장이 없다.
+// 대신 물리 키보드 타이핑은 막히는데, 키오스크에는 물리 키보드가 없다.
+["name", "studentId", "phone"].forEach(function (id) {
+  var el = document.getElementById(id);
+  if (el) el.setAttribute("readonly", "readonly");
+});
+
+// 정보 입력 화면에 들어오면 키패드를 바로 띄운다 (누를 때까지 기다리지 않는다)
+var openDefaultPad = function openDefaultPad() {
+  var active = document.activeElement;
+  if (active === document.getElementById("studentId") || active === document.getElementById("phone")) {
+    return;
+  }
+  if (typeof closeNumPad === "function") closeNumPad();
+  if (nameInput) openHanPad(nameInput);
+};
+
 if (nameInput) {
   nameInput.addEventListener("focus", function () {
+    if (typeof closeNumPad === "function") closeNumPad();
     openHanPad(nameInput);
   });
   // 물리 키보드나 붙여넣기로 값이 바뀌면 조합 상태가 어긋나므로 다시 맞춘다
@@ -3583,9 +3634,4 @@ if (nameInput) {
     clearHanState();
   });
 }
-document.addEventListener("focusin", function (e) {
-  if (!hanTarget) return;
-  if (e.target === hanTarget) return;
-  if (hanPad && hanPad.contains(e.target)) return;
-  closeHanPad();
-});
+
