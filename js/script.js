@@ -14,6 +14,15 @@ function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present,
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+// 요소가 없으면 조용히 넘어가는 이벤트 등록 헬퍼.
+// 예전에는 핵심 요소들에 el.addEventListener 를 바로 걸었는데, HTML 에서 id
+// 하나만 바뀌어도 그 줄에서 TypeError 가 나 스크립트 전체가 멈췄다. 초기화
+// 코드가 파일 아래쪽에 몰려 있어 결과적으로 앱이 통째로 죽었다.
+function on(el, type, handler, options) {
+  if (!el || !el.addEventListener) return;
+  el.addEventListener(type, handler, options);
+}
+
 var form = document.getElementById("user-form");
 var stepUser = document.getElementById("step-user");
 var stepItems = document.getElementById("step-items");
@@ -46,6 +55,23 @@ var confirmStock = document.getElementById("confirmStock");
 var confirmOk = document.getElementById("confirmOk");
 var confirmCancel = document.getElementById("confirmCancel");
 
+// HTML 과 스크립트가 어긋나면 조용히 오작동하는 대신 콘솔에 분명히 남긴다.
+// (여기 없는 요소는 대부분 if 가드로 넘어가므로 증상이 늦게, 엉뚱하게 나타난다)
+(function warnMissingElements() {
+  var required = {
+    "user-form": form, "step-user": stepUser, "step-items": stepItems,
+    "step-admin": stepAdmin, "itemGrid": itemGrid, "selectionResult": selectionResult,
+    "adminStockTable": adminStockTable, "adminBorrowedTable": adminBorrowedTable,
+    "confirmModal": confirmModal
+  };
+  var missing = Object.keys(required).filter(function (id) {
+    return !required[id];
+  });
+  if (missing.length > 0) {
+    console.error("HTML 에서 찾을 수 없는 필수 요소:", missing.join(", "));
+  }
+})();
+
 // ========================================
 // 커스텀 비밀번호 입력 모달
 var adminPwModal = document.getElementById("adminPasswordModal");
@@ -63,9 +89,9 @@ function showPasswordPrompt(title) {
     }, 100);
     function cleanup() {
       if (adminPwModal) adminPwModal.style.display = "none";
-      adminPwOk.removeEventListener("click", onOk);
-      adminPwCancel.removeEventListener("click", onCancel);
-      adminPwInput.removeEventListener("keydown", onKeydown);
+      if (adminPwOk) adminPwOk.removeEventListener("click", onOk);
+      if (adminPwCancel) adminPwCancel.removeEventListener("click", onCancel);
+      if (adminPwInput) adminPwInput.removeEventListener("keydown", onKeydown);
     }
     function onOk() {
       var val = adminPwInput ? adminPwInput.value : "";
@@ -80,9 +106,9 @@ function showPasswordPrompt(title) {
       if (e.key === "Enter") onOk();
       if (e.key === "Escape") onCancel();
     }
-    adminPwOk.addEventListener("click", onOk);
-    adminPwCancel.addEventListener("click", onCancel);
-    adminPwInput.addEventListener("keydown", onKeydown);
+    on(adminPwOk, "click", onOk);
+    on(adminPwCancel, "click", onCancel);
+    on(adminPwInput, "keydown", onKeydown);
   });
 }
 
@@ -162,26 +188,162 @@ function apiPost(data, callback) {
   }
 }
 
-// 서버로의 미확정(in-flight/실패) 쓰기 추적
-// - 대여/반납 등 변경을 서버에 보낼 때 증가하고, 서버가 성공으로 확정(ack)하면 감소
-// - 실패 시에는 감소하지 않아 "로컬에만 있는 변경"으로 간주 → 관리자 새로고침이 로컬을 덮어쓰지 않게 함
-var pendingSync = 0;
-function apiPostSync(data) {
-  pendingSync++;
-  apiPost(data, function (err, resp) {
-    if (!err && resp && resp.success) {
-      pendingSync--;
-      if (pendingSync < 0) pendingSync = 0;
+// ========================================
+// 서버 쓰기 재시도 큐
+// ========================================
+// 예전에는 실패한 요청을 그냥 버리고 카운터(pendingSync)만 올려 두었다. 그러면
+//   (1) 그 변경은 영영 서버에 반영되지 않고 (재시도가 없었다)
+//   (2) 카운터가 0으로 돌아오지 않아 관리자 화면이 그 세션 내내 서버 데이터를
+//       다시 못 가져왔다 (아래 getAllAdmin 의 덮어쓰기 가드 조건)
+// 즉 쓰기 한 번 실패가 "그 변경 유실 + 이후 모든 동기화 차단"으로 이어졌다.
+// 이제 실패한 요청을 큐에 남겨 지수 백오프로 재시도하고, 새로고침 뒤에도
+// 이어서 보내도록 localStorage 에 보관한다.
+var PENDING_KEY = 'kiosk_pendingWrites';
+var pendingWrites = [];
+var pendingFlushing = false;
+var pendingTimer = null;
+var pendingDropped = 0; // 재시도해도 소용없어 버린 건수 (관리자 동기화 표시에 사용)
+// 최대 백오프가 30초이므로 200회면 대략 1시간 40분. 그보다 오래 실패하는
+// 요청은 네트워크 문제가 아니라 그 요청 자체에 문제가 있다고 본다.
+var PENDING_MAX_TRIES = 200;
+
+// 서버가 명시적으로 거절한 요청은 다시 보내도 결과가 같다. 그대로 두면 큐 맨
+// 앞에서 막혀 뒤의 정상 요청까지 영영 못 나가므로, 일시적 오류만 재시도한다.
+var RETRYABLE_ERRORS = ['Server busy, please retry', 'Rate limit exceeded'];
+function isRetryableFailure(err, resp) {
+  if (err) return true; // 네트워크·타임아웃·HTTP 오류
+  if (!resp) return true;
+  if (resp.success) return false;
+  return RETRYABLE_ERRORS.indexOf(resp.error) !== -1;
+}
+
+// 관리자 비밀번호가 필요한 요청은 기기에 저장하지 않는다.
+// (localStorage 에 관리자 비밀번호가 평문으로 남는 것을 막는다)
+function savePendingWrites() {
+  saveToLocalCache(PENDING_KEY, pendingWrites.filter(function (entry) {
+    return !entry.needsAdmin;
+  }));
+}
+
+// 아직 서버에 반영되지 않은 로컬 변경이 있는가
+function hasPendingWrites() {
+  return pendingWrites.length > 0;
+}
+
+function queueWrite(data, options) {
+  pendingWrites.push({
+    data: data,
+    needsAdmin: !!(options && options.needsAdmin),
+    tries: 0
+  });
+  savePendingWrites();
+  flushPendingWrites();
+}
+
+// 큐를 앞에서부터 한 건씩 순서대로 보낸다.
+// 순서를 지켜야 하는 이유: 같은 물품에 대한 addBorrowed → removeBorrowed 가
+// 뒤바뀌면 반납이 먼저 처리돼 대여 기록이 남는다.
+function flushPendingWrites() {
+  if (pendingFlushing || pendingWrites.length === 0) return;
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
+
+  var entry = pendingWrites[0];
+  var payload = entry.data;
+
+  if (entry.needsAdmin) {
+    if (!adminAuthPassword) {
+      // 관리자 세션이 끝나 더는 보낼 수 없다. 버리고 다음 건으로 넘어간다.
+      dropHeadPendingWrite('관리자 세션 종료');
+      return;
     }
-    // 실패 시 pendingSync 유지: 아직 서버에 반영되지 않은 로컬 변경이 있음을 표시
+    payload = Object.assign({}, entry.data, { adminPassword: adminAuthPassword });
+  }
+
+  pendingFlushing = true;
+  apiPost(payload, function (err, resp) {
+    pendingFlushing = false;
+
+    if (!err && resp && resp.success) {
+      pendingWrites.shift();
+      savePendingWrites();
+      flushPendingWrites();
+      return;
+    }
+
+    if (!isRetryableFailure(err, resp)) {
+      dropHeadPendingWrite(resp && resp.error);
+      return;
+    }
+
+    entry.tries++;
+
+    // 큐는 순서 보장을 위해 맨 앞 건이 끝나야 다음으로 넘어간다. 서버가 특정
+    // 요청에만 계속 5xx 를 준다면 그 한 건이 뒤의 정상 요청을 영구히 막는다.
+    // 오프라인이 길어지는 것(정상 상황)은 견디되, 그보다 훨씬 긴 한도에서 포기한다.
+    if (entry.tries > PENDING_MAX_TRIES) {
+      dropHeadPendingWrite('재시도 한도 초과 (' + entry.tries + '회)');
+      return;
+    }
+
+    savePendingWrites();
+    // 1초 → 2 → 4 → … → 최대 30초
+    var delay = Math.min(30000, 1000 * Math.pow(2, Math.min(entry.tries, 5)));
+    pendingTimer = setTimeout(function () {
+      pendingTimer = null;
+      flushPendingWrites();
+    }, delay);
   });
 }
 
-// 로컬 캐시에만 저장 (서버 동기화는 증분 apiPostSync 로 별도 처리)
+function dropHeadPendingWrite(reason) {
+  var entry = pendingWrites.shift();
+  pendingDropped++;
+  console.error('서버 반영 실패로 요청을 버립니다:', entry && entry.data && entry.data.action, reason);
+  savePendingWrites();
+  flushPendingWrites();
+}
+
+// 새로고침·재시작 뒤에도 못 보낸 변경을 이어서 보낸다.
+function restorePendingWrites() {
+  var saved = loadFromLocalCache(PENDING_KEY);
+  if (Array.isArray(saved)) {
+    pendingWrites = saved.filter(function (e) {
+      return e && e.data && e.data.action;
+    }).map(function (e) {
+      // 저장된 건은 관리자 인증이 필요 없는 것들뿐이다 (savePendingWrites 참고)
+      return { data: e.data, needsAdmin: false, tries: 0 };
+    });
+  }
+  flushPendingWrites();
+}
+
+window.addEventListener('online', flushPendingWrites);
+setInterval(flushPendingWrites, 30000);
+
+// 대여 기록에서 개인정보(이름·전화번호)를 뺀 사본.
+// 기기 localStorage 는 공용 키오스크에 남는 저장소라 PII 를 두지 않는다.
+// 반납 흐름 판정에는 studentId·itemName·기한만 있으면 충분하다.
+function stripBorrowedPii(rows) {
+  return (Array.isArray(rows) ? rows : []).map(function (r) {
+    return {
+      studentId: r.studentId,
+      itemName: r.itemName,
+      dueLabel: r.dueLabel,
+      dueDate: r.dueDate,
+      borrowedAt: r.borrowedAt,
+      id: r.id
+    };
+  });
+}
+
+// 로컬 캐시에만 저장 (서버 동기화는 증분 queueWrite 로 별도 처리)
 function saveLocalCache() {
   try {
     saveToLocalCache('kiosk_items', items);
-    saveToLocalCache('kiosk_borrowed', borrowedRecords);
+    saveToLocalCache('kiosk_borrowed', stripBorrowedPii(borrowedRecords));
   } catch (e) {
     console.error('Failed to cache data:', e);
   }
@@ -514,29 +676,7 @@ var loadChangeLog = /*#__PURE__*/function () {
   };
 }();
 
-// 변경 로그 저장
-var saveChangeLog = /*#__PURE__*/function () {
-  var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(changeLogData) {
-    var limitedLog;
-    return _regenerator().w(function (_context1) {
-      while (1) switch (_context1.n) {
-        case 0:
-          try {
-            // 최근 50개만 저장
-            limitedLog = changeLogData.slice(-50);
-            saveToLocalCache('kiosk_changeLog', limitedLog);
-          } catch (error) {
-            console.error('Failed to save change log:', error);
-          }
-        case 1:
-          return _context1.a(2);
-      }
-    }, _callee1);
-  }));
-  return function saveChangeLog(_x7) {
-    return _ref1.apply(this, arguments);
-  };
-}();
+// (호출된 적 없는 saveChangeLog 제거 — 저장은 addChangeLog 안에서 한다)
 var changeLog = [];
 
 // 변경 로그 추가
@@ -559,8 +699,8 @@ var addChangeLog = /*#__PURE__*/function () {
             }
             // localStorage 캐시
             saveToLocalCache('kiosk_changeLog', changeLog);
-            // API에 전송 (fire-and-forget)
-            apiPost({
+            // 서버 전송은 큐를 통해 재시도까지 보장한다
+            queueWrite({
               action: 'addChangeLog',
               log: logEntry
             });
@@ -578,159 +718,80 @@ var addChangeLog = /*#__PURE__*/function () {
 }();
 
 // 로그인 기록 관리
-var loadLoginLog = /*#__PURE__*/function () {
-  var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11() {
-    var logs, _t14;
-    return _regenerator().w(function (_context11) {
-      while (1) switch (_context11.p = _context11.n) {
-        case 0:
-          _context11.p = 0;
-          logs = loadFromLocalCache('kiosk_loginLog');
-          return _context11.a(2, logs || []);
-        case 1:
-          _context11.p = 1;
-          _t14 = _context11.v;
-          console.error('Failed to load login log:', _t14);
-          return _context11.a(2, []);
-      }
-    }, _callee11, null, [[0, 1]]);
-  }));
-  return function loadLoginLog() {
-    return _ref11.apply(this, arguments);
-  };
-}();
-var saveLoginLog = /*#__PURE__*/function () {
-  var _ref12 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(log) {
-    var limitedLog;
-    return _regenerator().w(function (_context12) {
-      while (1) switch (_context12.n) {
-        case 0:
-          try {
-            // 최근 100개만 저장
-            limitedLog = log.slice(-100);
-            saveToLocalCache('kiosk_loginLog', limitedLog);
-          } catch (error) {
-            console.error('Failed to save login log:', error);
-          }
-        case 1:
-          return _context12.a(2);
-      }
-    }, _callee12);
-  }));
-  return function saveLoginLog(_x0) {
-    return _ref12.apply(this, arguments);
-  };
-}();
+// ※ 이름·학번·전화번호 묶음이라 기기 localStorage 에는 저장하지 않는다.
+//    공용 키오스크에서 브라우저만 열면 최근 이용자 100명의 개인정보가 그대로
+//    보이던 문제가 있었다. 서버에만 보내고, 관리자 화면에서 필요할 때
+//    getAllAdmin 으로 받아 메모리에서만 쓴다.
 var loginLog = [];
-var addLoginLog = /*#__PURE__*/function () {
-  var _ref13 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(user) {
-    var logEntry;
-    return _regenerator().w(function (_context13) {
-      while (1) switch (_context13.n) {
-        case 0:
-          try {
-            logEntry = {
-              time: new Date().toISOString(),
-              name: user.name,
-              studentId: user.studentId,
-              phone: user.phone
-            }; // 메모리 배열에 추가
-            loginLog.push(logEntry);
-            // 100개 제한 적용
-            if (loginLog.length > 100) {
-              loginLog = loginLog.slice(-100);
-            }
-            // localStorage 캐시
-            saveToLocalCache('kiosk_loginLog', loginLog);
-            // API에 전송 (fire-and-forget)
-            apiPost({
-              action: 'addLoginLog',
-              log: logEntry
-            });
-          } catch (error) {
-            console.error('Failed to add login log:', error);
-          }
-        case 1:
-          return _context13.a(2);
-      }
-    }, _callee13);
-  }));
-  return function addLoginLog(_x1) {
-    return _ref13.apply(this, arguments);
-  };
-}();
+
+function addLoginLog(user) {
+  try {
+    var logEntry = {
+      time: new Date().toISOString(),
+      name: user.name,
+      studentId: user.studentId,
+      phone: user.phone
+    };
+    // 메모리 배열에만 추가 (최근 100건)
+    loginLog.push(logEntry);
+    if (loginLog.length > 100) {
+      loginLog = loginLog.slice(-100);
+    }
+    // 서버 전송은 큐를 통해 재시도까지 보장한다
+    queueWrite({
+      action: 'addLoginLog',
+      log: logEntry
+    });
+  } catch (error) {
+    console.error('Failed to add login log:', error);
+  }
+}
+
+// 예전 버전이 기기에 남겨 둔 개인정보를 지운다 (1회성 정리)
+function purgeLegacyPii() {
+  try {
+    localStorage.removeItem('kiosk_loginLog');
+    var cached = loadFromLocalCache('kiosk_borrowed');
+    if (Array.isArray(cached) && cached.some(function (r) {
+      return r && (r.name || r.phone);
+    })) {
+      saveToLocalCache('kiosk_borrowed', stripBorrowedPii(cached));
+    }
+  } catch (e) {
+    console.error('legacy PII purge failed:', e);
+  }
+}
+purgeLegacyPii();
+
+// 기본 물품 데이터 (서버가 비어 있거나 연결이 안 될 때만 쓰는 폴백)
+// ※ google-apps-script.js 의 initializeData() 목록과 내용이 같아야 한다.
+//   maxStock 을 반드시 채운다. 비어 있으면 getMaxStock() 이 현재 재고를 최대치로
+//   간주해, 모든 물품이 늘 "충분"으로 보이고 재고 부족 경고가 뜨지 않는다.
+var DEFAULT_ITEMS = [
+  { name: "우산", type: "대여", stock: 7, maxStock: 7, notice: "비 오는 날 사용 후 충분히 말려서 반납", icon: "🌂" },
+  { name: "충전기", type: "대여", stock: 5, maxStock: 5, notice: "케이블 손상 시 즉시 관리자에게 보고", icon: "🔌" },
+  { name: "USB 허브", type: "대여", stock: 3, maxStock: 3, notice: "USB 포트 무리하게 꽂지 않기", icon: "🔗" },
+  { name: "USB 허브 C타입", type: "대여", stock: 3, maxStock: 3, notice: "USB 포트 무리하게 꽂지 않기", icon: "💻" },
+  { name: "농구공", type: "대여", stock: 2, maxStock: 2, notice: "실내 사용 금지, 흙 묻지 않게 관리", icon: "🏀" },
+  { name: "풋살볼", type: "대여", stock: 2, maxStock: 2, notice: "실내 사용 금지, 흙 묻지 않게 관리", icon: "⚽" },
+  { name: "피구공", type: "대여", stock: 2, maxStock: 2, notice: "실내 사용 금지, 흙 묻지 않게 관리", icon: "🔴" },
+  { name: "공", type: "대여", stock: 4, maxStock: 4, notice: "실내 사용 금지, 흙 묻지 않게 관리", icon: "⚽" },
+  { name: "담요", type: "대여", stock: 2, maxStock: 2, notice: "음식물·화장품 묻지 않게 주의", icon: "🛏️" },
+  { name: "핫팩", type: "소모품", stock: 20, maxStock: 20, notice: "개봉 후 재활용 불가, 즉시 폐기", icon: "🔥" },
+  { name: "마스크", type: "소모품", stock: 50, maxStock: 50, notice: "1인 1개 제한", icon: "😷" }
+];
+
+// 기본 목록은 매번 새 사본을 준다 (전역 상수가 재고 증감으로 오염되지 않도록)
+function defaultItemsCopy() {
+  return DEFAULT_ITEMS.map(function (it) {
+    return Object.assign({}, it);
+  });
+}
 
 // Google Sheets API에서 데이터 불러오기 (localStorage 폴백)
 var loadData = function loadData() {
   return new Promise(function (resolve) {
-    // 기본 물품 데이터
-    var defaultItems = [{
-      name: "우산",
-      type: "대여",
-      stock: 7,
-      notice: "비 오는 날 사용 후 충분히 말려서 반납",
-      icon: "🌂"
-    }, {
-      name: "충전기",
-      type: "대여",
-      stock: 5,
-      notice: "케이블 손상 시 즉시 관리자에게 보고",
-      icon: "🔌"
-    }, {
-      name: "USB 허브",
-      type: "대여",
-      stock: 3,
-      notice: "USB 포트 무리하게 꽂지 않기",
-      icon: "🔗"
-    }, {
-      name: "USB 허브 C타입",
-      type: "대여",
-      stock: 3,
-      notice: "USB 포트 무리하게 꽂지 않기",
-      icon: "💻"
-    }, {
-      name: "농구공",
-      type: "대여",
-      stock: 2,
-      notice: "실내 사용 금지, 흙 묻지 않게 관리",
-      icon: "🏀"
-    }, {
-      name: "풋살볼",
-      type: "대여",
-      stock: 2,
-      notice: "실내 사용 금지, 흙 묻지 않게 관리",
-      icon: "⚽"
-    }, {
-      name: "피구공",
-      type: "대여",
-      stock: 2,
-      notice: "실내 사용 금지, 흙 묻지 않게 관리",
-      icon: "🔴"
-    }, {
-      name: "공",
-      type: "대여",
-      stock: 4,
-      notice: "실내 사용 금지, 흙 묻지 않게 관리",
-      icon: "⚽"
-    }, {
-      name: "담요",
-      type: "대여",
-      stock: 2,
-      notice: "음식물·화장품 묻지 않게 주의",
-      icon: "🛏️"
-    }, {
-      name: "핫팩",
-      type: "소모품",
-      stock: 20,
-      notice: "개봉 후 재활용 불가, 즉시 폐기",
-      icon: "🔥"
-    }, {
-      name: "마스크",
-      type: "소모품",
-      stock: 50,
-      notice: "1인 1개 제한",
-      icon: "😷"
-    }];
+    var defaultItems = defaultItemsCopy();
 
     // API에서 데이터 가져오기 시도
     apiGet('getAll', function (err, response) {
@@ -743,15 +804,14 @@ var loadData = function loadData() {
         });
         var loadedBorrowed = apiData.borrowed || [];
 
-        // localStorage 캐시에 저장
+        // localStorage 캐시에 저장 (개인정보는 담지 않는다)
         saveToLocalCache('kiosk_items', loadedItems);
-        saveToLocalCache('kiosk_borrowed', loadedBorrowed);
+        saveToLocalCache('kiosk_borrowed', stripBorrowedPii(loadedBorrowed));
         if (apiData.changeLog) {
           saveToLocalCache('kiosk_changeLog', apiData.changeLog);
         }
-        if (apiData.loginLog) {
-          saveToLocalCache('kiosk_loginLog', apiData.loginLog);
-        }
+        // loginLog 는 이름·학번·전화번호 묶음이라 기기에 남기지 않는다.
+        // 관리자 화면에서 필요할 때 서버(getAllAdmin)에서 받아 메모리로만 쓴다.
         console.log('Data loaded from Google Sheets API');
         resolve({
           items: loadedItems,
@@ -788,39 +848,46 @@ var statsTotalBorrow = loadFromLocalCache('kiosk_statsTotalBorrow');
 // 숫자가 뛰어 보이므로 '—' 로 대신한다. 요청이 실패하면 다시 캐시값으로 돌아간다.
 var statsTotalBorrowLoading = false;
 
-// 데이터 저장 함수 (localStorage 캐시 + API 동기화)
-var saveData = /*#__PURE__*/function () {
-  var _ref14 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14() {
-    return _regenerator().w(function (_context14) {
-      while (1) switch (_context14.n) {
-        case 0:
-          try {
-            // localStorage 캐시 즉시 저장
-            saveToLocalCache('kiosk_items', items);
-            saveToLocalCache('kiosk_borrowed', borrowedRecords);
-            // API에 전체 데이터 동기화 (추적됨) - 파괴적 작업이므로 관리자 인증 동봉
-            apiPostSync({
-              action: 'saveItems',
-              data: items,
-              adminPassword: adminAuthPassword
-            });
-            apiPostSync({
-              action: 'saveBorrowed',
-              data: borrowedRecords,
-              adminPassword: adminAuthPassword
-            });
-          } catch (error) {
-            console.error('Failed to save data:', error);
-          }
-        case 1:
-          return _context14.a(2);
-      }
-    }, _callee14);
-  }));
-  return function saveData() {
-    return _ref14.apply(this, arguments);
+// ── 관리자 물품 편집: 증분 저장 ─────────────────────────
+// 예전 saveData() 는 로컬 items/borrowedRecords 배열 전체를 시트에 덮어썼다.
+// 관리자 화면을 열어둔 사이 다른 기기에서 대여가 일어나면, 물품 하나만 고쳐도
+// 나머지 전 물품의 재고가 관리자 기기의 옛 값으로 되돌아갔다.
+// 이제 실제로 건드린 대상만 서버에 보낸다.
+
+// 서버에 보낼 물품 형태로 정리 (서버 ITEM_HEADERS 와 맞춘다)
+function itemPayload(item) {
+  return {
+    name: item.name,
+    type: item.type,
+    stock: Number(item.stock) || 0,
+    maxStock: Number(item.maxStock) || 0,
+    notice: item.notice || '',
+    icon: item.icon || '',
+    image: item.image || ''
   };
-}();
+}
+
+// 추가·수정. 이름을 바꿨다면 oldName 을 함께 보내면 서버가 대여 기록의
+// 물품명까지 같이 고쳐 준다.
+function syncUpsertItem(item, oldName) {
+  var payload = { action: 'upsertItem', item: itemPayload(item) };
+  if (oldName && oldName !== item.name) payload.oldName = oldName;
+  queueWrite(payload, { needsAdmin: true });
+}
+
+function syncDeleteItem(name) {
+  queueWrite({ action: 'deleteItem', name: name }, { needsAdmin: true });
+}
+
+// 순서만 보낸다. 재고 등 값은 서버가 시트의 현재 값을 그대로 유지한다.
+function syncReorderItems() {
+  queueWrite({
+    action: 'reorderItems',
+    names: items.map(function (it) {
+      return it.name;
+    })
+  }, { needsAdmin: true });
+}
 var userChips = document.getElementById("userChips");
 var logBoard = document.getElementById("logBoard");
 var brandLogo = document.getElementById("brandLogo");
@@ -990,11 +1057,11 @@ var showStep = function showStep(step) {
   }
   // 모든 섹션을 숨김 처리
   if (stepHome) stepHome.classList.add("hidden");
-  stepUser.classList.add("hidden");
-  stepItems.classList.add("hidden");
-  stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
+  if (stepUser) stepUser.classList.add("hidden");
+  if (stepItems) stepItems.classList.add("hidden");
+  if (stepAdmin) stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
   if (stepOverdue) stepOverdue.classList.add("hidden"); // 연체자 섹션(구버전) 숨김
-  stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
+  if (stepChangelog) stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
   // 대여자 정보 칩은 물품 선택 화면에서만 쓴다. 다른 화면으로 옮기면 비운다.
@@ -1022,7 +1089,7 @@ var showStep = function showStep(step) {
       _kioskHome.style.width = '';
     }
   } else if (step === "items") {
-    stepItems.classList.remove("hidden");
+    if (stepItems) stepItems.classList.remove("hidden");
     // 관리자 화면이 남긴 인라인 여백·폭을 원복한다.
     // 남아 있으면 물품 그리드가 오른쪽으로 밀려 잘린다.
     var _kioskItems = document.querySelector('.kiosk');
@@ -1047,7 +1114,7 @@ var showStep = function showStep(step) {
     }
   } else if (step === "admin") {
     // 관리자 모드일 경우
-    stepAdmin.classList.remove("hidden");
+    if (stepAdmin) stepAdmin.classList.remove("hidden");
     // 고정 팝업이 사라졌으므로 .kiosk 여백 조작도 필요 없다. 남아 있으면 잘리므로 원복.
     var kiosk = document.querySelector('.kiosk');
     if (kiosk) {
@@ -1065,8 +1132,9 @@ var showStep = function showStep(step) {
       statsTotalBorrowLoading = false;
       // req1: 응답 없음(err)·success=false·data 파손 시 로컬 메모리/캐시를 절대 덮어쓰지 않고 캐시로 렌더링만
       var ok = !err && response && response.success && response.data;
-      // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
-      if (ok && pendingSync === 0) {
+      // 못 보낸 로컬 변경이 남아 있으면 덮어쓰지 않음 (데이터 유실 방지).
+      // 큐는 백오프로 계속 재시도하므로, 예전처럼 영구히 막히지는 않는다.
+      if (ok && !hasPendingWrites()) {
         var apiData = response.data;
 
         // req2/5: items 는 "비어있지 않은 배열"일 때만 교체 + 재고 숫자 보정
@@ -1089,17 +1157,18 @@ var showStep = function showStep(step) {
             return !serverKeys[borrowKey(r)];
           });
           borrowedRecords = dedupBorrowed(apiData.borrowed.concat(localOnly));
-          saveToLocalCache('kiosk_borrowed', borrowedRecords);
+          // 캐시에는 개인정보를 뺀 사본만 남긴다 (메모리에는 관리자 표시용으로 유지)
+          saveToLocalCache('kiosk_borrowed', stripBorrowedPii(borrowedRecords));
         }
 
-        // req2: changeLog/loginLog 도 "비어있지 않은 배열"일 때만 교체
+        // req2: changeLog 는 "비어있지 않은 배열"일 때만 교체
         if (Array.isArray(apiData.changeLog) && apiData.changeLog.length > 0) {
           changeLog = apiData.changeLog;
           saveToLocalCache('kiosk_changeLog', changeLog);
         }
-        if (Array.isArray(apiData.loginLog) && apiData.loginLog.length > 0) {
+        // loginLog 는 메모리에만 둔다 (이름·학번·전화번호 묶음이라 기기에 남기지 않음)
+        if (Array.isArray(apiData.loginLog)) {
           loginLog = apiData.loginLog;
-          saveToLocalCache('kiosk_loginLog', loginLog);
         }
       }
       // 누적 카운터는 로컬 쓰기와 무관한 서버 권위 값이므로 pendingSync와 별개로 갱신
@@ -1109,10 +1178,15 @@ var showStep = function showStep(step) {
       }
       var syncTime = new Date();
       var hh = String(syncTime.getHours()).padStart(2, '0') + ':' + String(syncTime.getMinutes()).padStart(2, '0');
-      if (ok) {
-        setAdminSync('ok', '서버 연결됨 · ' + hh + ' 동기화');
-      } else {
+      if (!ok) {
         setAdminSync('off', '오프라인 · 저장된 데이터 표시 중');
+      } else if (pendingDropped > 0) {
+        // 재시도해도 서버가 거절한 변경이 있으면 조용히 넘기지 않는다
+        setAdminSync('wait', '서버 연결됨 · 반영 실패한 변경 ' + pendingDropped + '건 (콘솔 확인)');
+      } else if (hasPendingWrites()) {
+        setAdminSync('wait', '서버 연결됨 · 전송 대기 중인 변경 ' + pendingWrites.length + '건');
+      } else {
+        setAdminSync('ok', '서버 연결됨 · ' + hh + ' 동기화');
       }
       renderAdminData();
     });
@@ -1124,7 +1198,7 @@ var showStep = function showStep(step) {
     return;
   } else if (step === "changelog") {
     // 변경 로그 화면일 경우
-    stepChangelog.classList.remove("hidden");
+    if (stepChangelog) stepChangelog.classList.remove("hidden");
     var _kiosk = document.querySelector('.kiosk');
     if (_kiosk) {
       _kiosk.style.marginLeft = '';
@@ -1134,7 +1208,7 @@ var showStep = function showStep(step) {
     renderLoginLog(); // 로그인 기록 렌더링
   } else {
     // 기본값 (user)
-    stepUser.classList.remove("hidden");
+    if (stepUser) stepUser.classList.remove("hidden");
     // STEP 1에서는 제목과 부제목 숨김 (로고가 브랜드 역할)
 
     if (brandLogo) brandLogo.classList.remove("hidden");
@@ -1258,7 +1332,7 @@ var renderAdminData = function renderAdminData() {
       return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + iconLabel + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)"' + (stock <= 0 ? ' disabled' : '') + '>−</button>' + '<span>' + stock + '<i>/' + max + '</i></span>' + '<button onclick="updateStock(' + index + ', 1)"' + (max > 0 && stock >= max ? ' disabled' : '') + '>＋</button>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="startEditItem(' + index + ')" class="admin-btn">수정</button>' + '<button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button>' + '</div>' + '</td>' + '</tr>';
     }).join('') + '</table>';
   }
-  adminStockTable.innerHTML = stockHtml;
+  if (adminStockTable) adminStockTable.innerHTML = stockHtml;
   labelTableCells(adminStockTable);
   // 수정 모드에 들어가면 물품명 칸에 바로 커서를 둔다
   if (adminEditIndex !== -1 && adminEditFocus) {
@@ -1340,7 +1414,7 @@ var renderAdminData = function renderAdminData() {
     return hay.indexOf(adminLendQuery) !== -1;
   });
   if (lendRows.length === 0) {
-    adminBorrowedTable.innerHTML = '<p class="admin-empty">' + (borrowedRecords.length === 0 ? '현재 대여된 물품이 없습니다.' : '검색 결과가 없습니다.') + '</p>';
+    if (adminBorrowedTable) adminBorrowedTable.innerHTML = '<p class="admin-empty">' + (borrowedRecords.length === 0 ? '현재 대여된 물품이 없습니다.' : '검색 결과가 없습니다.') + '</p>';
     renderLoginLog();
     return;
   }
@@ -1348,9 +1422,11 @@ var renderAdminData = function renderAdminData() {
   var borrowedHtml = '<table style="table-layout: auto;"><tr class="is-head"><th>물품</th><th>학번</th><th>이름</th><th>연락처</th><th>반납 기한</th></tr>' + lendRows.map(function (record) {
     var dueLabelWithoutTime = (record.dueLabel || '').replace(' 18:00', '');
     var isOverdue = new Date(record.dueDate) < nowForLend;
-    return '<tr>' + '<td data-th="물품" style="white-space: nowrap;">' + escapeHtml(record.itemName) + '</td>' + '<td data-th="학번" style="white-space: nowrap;">' + escapeHtml(record.studentId) + '</td>' + '<td data-th="이름" style="white-space: nowrap;"><strong>' + escapeHtml(record.name) + '</strong></td>' + '<td data-th="연락처" style="white-space: nowrap;">' + escapeHtml(record.phone) + '</td>' + '<td data-th="반납 기한" style="white-space: nowrap;"><span class="admin-tag ' + (isOverdue ? 'is-bad' : 'is-warn') + '">' + escapeHtml(dueLabelWithoutTime) + (isOverdue ? ' 연체' : '') + '</span></td>' + '</tr>';
+    return '<tr>' + '<td data-th="물품" style="white-space: nowrap;">' + escapeHtml(record.itemName) + '</td>' + '<td data-th="학번" style="white-space: nowrap;">' + escapeHtml(record.studentId) + '</td>' + // 이름·연락처는 서버(getAllAdmin)에서 받아온 동안에만 채워진다.
+    // 오프라인이거나 로그아웃 후에는 기기에 남기지 않으므로 '-' 로 표시된다.
+    '<td data-th="이름" style="white-space: nowrap;"><strong>' + escapeHtml(record.name || '-') + '</strong></td>' + '<td data-th="연락처" style="white-space: nowrap;">' + escapeHtml(record.phone || '-') + '</td>' + '<td data-th="반납 기한" style="white-space: nowrap;"><span class="admin-tag ' + (isOverdue ? 'is-bad' : 'is-warn') + '">' + escapeHtml(dueLabelWithoutTime) + (isOverdue ? ' 연체' : '') + '</span></td>' + '</tr>';
   }).join('') + '</table>';
-  adminBorrowedTable.innerHTML = borrowedHtml;
+  if (adminBorrowedTable) adminBorrowedTable.innerHTML = borrowedHtml;
   labelTableCells(adminBorrowedTable);
 
 
@@ -1362,24 +1438,8 @@ var renderAdminData = function renderAdminData() {
   }
 };
 
-// 변경 로그 렌더링 함수 (관리자 모드용)
-var renderChangeLog = function renderChangeLog() {
-  if (changeLog.length === 0) {
-    adminChangeLog.innerHTML = "<p style='margin: 0; padding: 10px; color: #b5c0d0;'>변경 기록이 없습니다.</p>";
-    return;
-  }
-
-  // 최근 10개만 표시 (최신 순)
-  var recentLogs = changeLog.slice(-10).reverse();
-  var formatTime = function formatTime(dateString) {
-    var date = new Date(dateString);
-    return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
-  };
-  var logHtml = "\n                <table>\n                    <tr class=\"is-head\"><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
-    return "\n                        <tr>\n                            <td style=\"font-size: 0.8rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(escapeHtml(log.action), "</td>\n                            <td style=\"font-size: 0.85rem;\">").concat(escapeHtml(log.details), "</td>\n                        </tr>\n                    ");
-  }).join(''), "\n                </table>\n            ");
-  adminChangeLog.innerHTML = logHtml;
-};
+// (호출된 적 없고 선언되지 않은 adminChangeLog 를 참조하던 renderChangeLog 는 제거.
+//  실제로 쓰이는 것은 아래 renderChangeLogView 다.)
 
 // 변경 로그 화면 렌더링 함수
 var renderChangeLogView = function renderChangeLogView() {
@@ -1433,6 +1493,7 @@ var renderLoginLog = function renderLoginLog() {
 
 // 연체자 데이터 렌더링 함수
 var renderOverdueData = function renderOverdueData() {
+  if (!overdueTable) return;
   var now = new Date();
   var overdueRecords = borrowedRecords.filter(function (record) {
     var dueDate = new Date(record.dueDate);
@@ -1447,31 +1508,58 @@ var renderOverdueData = function renderOverdueData() {
   var calculateOverdueDays = function calculateOverdueDays(dueDate) {
     var due = new Date(dueDate);
     var diffTime = now - due;
-    var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   // 연체 벌금 계산 (1일당 2000원)
   var calculateFine = function calculateFine(dueDate) {
-    var days = calculateOverdueDays(dueDate);
-    return days * 2000;
+    return calculateOverdueDays(dueDate) * 2000;
   };
-  var overdueHtml = "\n                <table style=\"table-layout: auto; min-width: 100%;\">\n                    <colgroup>\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 16%;\">\n                    </colgroup>\n                    <tr class=\"is-head\"><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th><th>\uC5F0\uCCB4 \uC77C\uC218</th><th>\uC5F0\uCCB4 \uBC8C\uAE08</th><th>\uAD00\uB9AC</th></tr>\n                    ".concat(overdueRecords.map(function (record) {
+
+  // 강제 반납 버튼은 onclick 문자열로 값을 넘기지 않는다.
+  // 예전에는 escapeHtml 로 감싼 값을 다시 작은따옴표 문자열에 끼워 넣었는데,
+  // escapeHtml 이 이미 따옴표를 엔티티로 바꾼 뒤라 이스케이프가 무의미했고,
+  // 무엇보다 forceReturn 이 HTML 이스케이프된 이름을 받아 원본 기록과
+  // 비교에 실패해 강제 반납이 조용히 안 되는 경우가 있었다.
+  // 이제 data-* 로 원본 값을 담고 이벤트 위임으로 처리한다.
+  var rowsHtml = overdueRecords.map(function (record) {
     var overdueDays = calculateOverdueDays(record.dueDate);
     var fine = calculateFine(record.dueDate);
-    // borrowedRecords에서 해당 기록의 인덱스 찾기
-    var recordIndex = borrowedRecords.findIndex(function (r) {
-      return String(r.studentId) === String(record.studentId) && r.itemName === record.itemName && r.dueDate === record.dueDate;
-    });
-    // onclick 인젝션 방지: 값을 이스케이프하여 안전하게 전달
-    var safeStudentId = escapeHtml(String(record.studentId)).replace(/'/g, "\\'");
-    var safeItemName = escapeHtml(record.itemName).replace(/'/g, "\\'");
-    var safeDueDate = escapeHtml(record.dueDate).replace(/'/g, "\\'");
-    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(escapeHtml(record.itemName), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(String(record.studentId)), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.phone), "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; min-width: 120px;\">").concat(escapeHtml(record.dueLabel), "</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;\">").concat(parseInt(overdueDays) || 0, "\uC77C</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;\">").concat(parseInt(fine) ? fine.toLocaleString() : '0', "\uC6D0</td>\n                            <td style=\"white-space: nowrap;\">\n                                <button onclick=\"forceReturn('").concat(safeStudentId, "', '").concat(safeItemName, "', '").concat(safeDueDate, "')\" style=\"padding: 8px 16px; border-radius: 10px; border: none; background: #4e5fe5; color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600;\">\uAC15\uC81C \uBC18\uB0A9</button>\n                            </td>\n                        </tr>\n                    ");
-  }).join(''), "\n                </table>\n            ");
-  overdueTable.innerHTML = overdueHtml;
+    return '<tr>' +
+      '<td style="white-space: nowrap;">' + escapeHtml(record.itemName) + '</td>' +
+      '<td style="white-space: nowrap;">' + escapeHtml(String(record.studentId)) + '</td>' +
+      '<td style="white-space: nowrap;">' + escapeHtml(record.name || '-') + '</td>' +
+      '<td style="white-space: nowrap;">' + escapeHtml(record.phone || '-') + '</td>' +
+      '<td style="color: #ff8f8f; white-space: nowrap; min-width: 120px;">' + escapeHtml(record.dueLabel) + '</td>' +
+      '<td style="color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;">' + (parseInt(overdueDays, 10) || 0) + '일</td>' +
+      '<td style="color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;">' + (parseInt(fine, 10) ? fine.toLocaleString() : '0') + '원</td>' +
+      '<td style="white-space: nowrap;">' +
+        '<button type="button" class="admin-btn is-danger" data-force-return' +
+        ' data-student-id="' + escapeHtml(String(record.studentId)) + '"' +
+        ' data-item-name="' + escapeHtml(String(record.itemName)) + '"' +
+        ' data-due-date="' + escapeHtml(String(record.dueDate)) + '">강제 반납</button>' +
+      '</td>' +
+      '</tr>';
+  }).join('');
+
+  overdueTable.innerHTML =
+    '<table style="table-layout: auto; min-width: 100%;">' +
+    '<tr class="is-head"><th>물품</th><th>학번</th><th>이름</th><th>연락처</th>' +
+    '<th>반납 기한</th><th>연체 일수</th><th>연체 벌금</th><th>관리</th></tr>' +
+    rowsHtml +
+    '</table>';
   labelTableCells(overdueTable);
 };
+
+// 강제 반납 버튼 (이벤트 위임)
+if (overdueTable) {
+  overdueTable.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('[data-force-return]') : null;
+    if (!btn) return;
+    // dataset 값은 브라우저가 HTML 엔티티를 이미 되돌려 주므로 원본 그대로다
+    window.forceReturn(btn.dataset.studentId, btn.dataset.itemName, btn.dataset.dueDate);
+  });
+}
 var showSelectionResult = function showSelectionResult(message) {
   var isSuccess = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
   selectionResult.textContent = message;
@@ -1548,6 +1636,7 @@ if (filterConsumeBtn) {
   });
 }
 var renderItems = function renderItems() {
+  if (!itemGrid) return;
   // 재고가 바뀔 때마다 홈 화면 칩도 같이 갱신한다
   renderHomeStock();
 
@@ -1644,7 +1733,7 @@ renderItems();
 var isDragging = false;
 var startY = 0;
 var scrollTop = 0;
-itemGrid.addEventListener('mousedown', function (e) {
+on(itemGrid, 'mousedown', function (e) {
   // 버튼 클릭이 아닌 경우에만 드래그 시작
   if (e.target.tagName !== 'BUTTON') {
     isDragging = true;
@@ -1653,15 +1742,15 @@ itemGrid.addEventListener('mousedown', function (e) {
     itemGrid.style.cursor = 'grabbing';
   }
 });
-itemGrid.addEventListener('mouseleave', function () {
+on(itemGrid, 'mouseleave', function () {
   isDragging = false;
   itemGrid.style.cursor = 'grab';
 });
-itemGrid.addEventListener('mouseup', function () {
+on(itemGrid, 'mouseup', function () {
   isDragging = false;
   itemGrid.style.cursor = 'grab';
 });
-itemGrid.addEventListener('mousemove', function (e) {
+on(itemGrid, 'mousemove', function (e) {
   if (!isDragging) return;
   e.preventDefault();
   var y = e.pageY - itemGrid.offsetTop;
@@ -1672,7 +1761,7 @@ itemGrid.addEventListener('mousemove', function (e) {
 // 터치 이벤트 지원
 var touchStartY = 0;
 var touchScrollTop = 0;
-itemGrid.addEventListener('touchstart', function (e) {
+on(itemGrid, 'touchstart', function (e) {
   if (e.target.tagName !== 'BUTTON') {
     touchStartY = e.touches[0].pageY;
     touchScrollTop = itemGrid.scrollTop;
@@ -1680,7 +1769,7 @@ itemGrid.addEventListener('touchstart', function (e) {
 }, {
   passive: true
 });
-itemGrid.addEventListener('touchmove', function (e) {
+on(itemGrid, 'touchmove', function (e) {
   if (e.target.tagName !== 'BUTTON') {
     var touchY = e.touches[0].pageY;
     var walk = (touchY - touchStartY) * 2;
@@ -1694,7 +1783,7 @@ itemGrid.addEventListener('touchmove', function (e) {
 var adminIsDragging = false;
 var adminStartY = 0;
 var adminScrollTop = 0;
-adminStockTable.addEventListener('mousedown', function (e) {
+on(adminStockTable, 'mousedown', function (e) {
   // 버튼 클릭이 아닌 경우에만 드래그 시작
   if (e.target.tagName !== 'BUTTON') {
     adminIsDragging = true;
@@ -1703,15 +1792,15 @@ adminStockTable.addEventListener('mousedown', function (e) {
     adminStockTable.style.cursor = 'grabbing';
   }
 });
-adminStockTable.addEventListener('mouseleave', function () {
+on(adminStockTable, 'mouseleave', function () {
   adminIsDragging = false;
   adminStockTable.style.cursor = 'grab';
 });
-adminStockTable.addEventListener('mouseup', function () {
+on(adminStockTable, 'mouseup', function () {
   adminIsDragging = false;
   adminStockTable.style.cursor = 'grab';
 });
-adminStockTable.addEventListener('mousemove', function (e) {
+on(adminStockTable, 'mousemove', function (e) {
   if (!adminIsDragging) return;
   e.preventDefault();
   var y = e.pageY - adminStockTable.offsetTop;
@@ -1722,7 +1811,7 @@ adminStockTable.addEventListener('mousemove', function (e) {
 // 터치 이벤트 지원
 var adminTouchStartY = 0;
 var adminTouchScrollTop = 0;
-adminStockTable.addEventListener('touchstart', function (e) {
+on(adminStockTable, 'touchstart', function (e) {
   if (e.target.tagName !== 'BUTTON') {
     adminTouchStartY = e.touches[0].pageY;
     adminTouchScrollTop = adminStockTable.scrollTop;
@@ -1730,7 +1819,7 @@ adminStockTable.addEventListener('touchstart', function (e) {
 }, {
   passive: true
 });
-adminStockTable.addEventListener('touchmove', function (e) {
+on(adminStockTable, 'touchmove', function (e) {
   if (e.target.tagName !== 'BUTTON') {
     var touchY = e.touches[0].pageY;
     var walk = (touchY - adminTouchStartY) * 2;
@@ -1740,70 +1829,47 @@ adminStockTable.addEventListener('touchmove', function (e) {
   passive: true
 });
 
-// 초기 로드 시 STEP1로 설정
-var initApp = /*#__PURE__*/function () {
-  var _ref15 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-    var data, savedItems, savedBorrowed, savedChangeLog, savedLoginLog, _t15;
-    return _regenerator().w(function (_context15) {
-      while (1) switch (_context15.p = _context15.n) {
-        case 0:
-          _context15.p = 0;
-          _context15.n = 1;
-          return loadData();
-        case 1:
-          data = _context15.v;
-          items = data.items;
-          borrowedRecords = data.borrowedRecords;
+// 초기 로드 시 홈 화면으로
+async function initApp() {
+  try {
+    const data = await loadData();
+    items = data.items;
+    borrowedRecords = data.borrowedRecords;
 
-          // 로그 데이터 로드 (localStorage 캐시)
-          _context15.n = 2;
-          return loadChangeLog();
-        case 2:
-          changeLog = _context15.v;
-          _context15.n = 3;
-          return loadLoginLog();
-        case 3:
-          loginLog = _context15.v;
-          console.log('Data loaded successfully');
+    // 변경 로그는 localStorage 캐시에서 (개인정보가 없다)
+    changeLog = await loadChangeLog();
+    // 로그인 기록은 개인정보라 기기에 캐시하지 않는다.
+    // 관리자 화면에 들어갈 때 getAllAdmin 으로 서버에서 받아 온다.
+    loginLog = [];
+    console.log('Data loaded successfully');
 
-          // 데이터 로드 후 물품 목록 렌더링
-          renderItems();
-          _context15.n = 5;
-          break;
-        case 4:
-          _context15.p = 4;
-          _t15 = _context15.v;
-          console.error('Initialization error:', _t15);
-          // 최종 폴백
-          try {
-            savedItems = loadFromLocalCache('kiosk_items');
-            if (savedItems) items = savedItems;
-            savedBorrowed = loadFromLocalCache('kiosk_borrowed');
-            if (savedBorrowed) borrowedRecords = savedBorrowed;
-            savedChangeLog = loadFromLocalCache('kiosk_changeLog');
-            if (savedChangeLog) changeLog = savedChangeLog;
-            savedLoginLog = loadFromLocalCache('kiosk_loginLog');
-            if (savedLoginLog) loginLog = savedLoginLog;
-            console.log('Fallback: Data loaded from localStorage');
-            renderItems();
-          } catch (e2) {
-            console.error('localStorage fallback error:', e2);
-          }
-        case 5:
-          // initApp 은 서버 응답을 기다리느라 수 초가 걸릴 수 있다. 그 사이 사용자가
-          // 이미 다른 화면으로 넘어갔다면 홈으로 되돌리지 않는다 (입력 중이던 내용 보호).
-          if (!currentStepName || currentStepName === "home") {
-            showStep("home");
-          }
-        case 6:
-          return _context15.a(2);
-      }
-    }, _callee15, null, [[0, 4]]);
-  }));
-  return function initApp() {
-    return _ref15.apply(this, arguments);
-  };
-}();
+    renderItems();
+  } catch (err) {
+    console.error('Initialization error:', err);
+    // 최종 폴백
+    try {
+      const savedItems = loadFromLocalCache('kiosk_items');
+      if (savedItems) items = savedItems;
+      const savedBorrowed = loadFromLocalCache('kiosk_borrowed');
+      if (savedBorrowed) borrowedRecords = savedBorrowed;
+      const savedChangeLog = loadFromLocalCache('kiosk_changeLog');
+      if (savedChangeLog) changeLog = savedChangeLog;
+      console.log('Fallback: Data loaded from localStorage');
+      renderItems();
+    } catch (e2) {
+      console.error('localStorage fallback error:', e2);
+    }
+  }
+
+  // 못 보낸 변경이 남아 있으면 이어서 보낸다 (앱 재시작 후 복구)
+  restorePendingWrites();
+
+  // initApp 은 서버 응답을 기다리느라 수 초가 걸릴 수 있다. 그 사이 사용자가
+  // 이미 다른 화면으로 넘어갔다면 홈으로 되돌리지 않는다 (입력 중이던 내용 보호).
+  if (!currentStepName || currentStepName === 'home') {
+    showStep('home');
+  }
+}
 if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", initApp);
 } else {
@@ -1827,7 +1893,10 @@ var getDueInfo = function getDueInfo() {
   return {
     date: due,
     label: "".concat(due.getMonth() + 1, "/").concat(due.getDate(), "(").concat(weekdayNames[due.getDay()], ") 18:00"),
-    isWeekendPenalty: day <= 4 // Monday~Thursday
+    // 월~목 대여만 "같은 주 안에 안 내면 주말에도 벌금" 안내가 맞다.
+    // 예전 조건(day <= 4)은 일요일(0)까지 포함해, 월요일이 기한인 일요일 대여에도
+    // 주말 벌금 문구가 붙었다.
+    isWeekendPenalty: day >= 1 && day <= 4
   };
 };
 var formatTime = function formatTime(date) {
@@ -1892,20 +1961,19 @@ if (privacyModal) {
     if (e.target === privacyModal) privacyModal.style.display = "none";
   });
 }
-form.addEventListener("submit", function (event) {
+on(form, "submit", function (event) {
   event.preventDefault();
   selectionResult.classList.add("hidden");
   selectionResult.textContent = "";
 
-  // 입력값 가져오기 및 XSS 방지
-  var rawName = form.name.value.trim();
-  var rawStudentId = form.studentId.value.trim();
-  var rawPhone = form.phone.value.trim();
-
-  // HTML 이스케이프 처리
-  var name = escapeHtml(rawName);
-  var studentId = escapeHtml(rawStudentId);
-  var phone = escapeHtml(rawPhone);
+  // 입력값은 원본 그대로 다룬다.
+  // 예전에는 여기서 escapeHtml 을 걸어 그 결과를 currentUser·시트에까지 저장했다.
+  // 이스케이프는 화면에 그릴 때(출력 시점)만 하는 것이 원칙이고, 저장 시점에
+  // 걸면 검증도 이스케이프된 문자열을 대상으로 돌아 규칙이 어긋난다.
+  // (아래 렌더링 경로는 모두 escapeHtml 을 거친다)
+  var name = form.name.value.trim();
+  var studentId = form.studentId.value.trim();
+  var phone = form.phone.value.trim();
   var isValid = true;
 
   // 이름 검증
@@ -1995,7 +2063,7 @@ form.addEventListener("submit", function (event) {
 var isProcessing = false;
 var debounceTime = 400; // 400ms
 
-itemGrid.addEventListener("click", /*#__PURE__*/function () {
+on(itemGrid, "click", /*#__PURE__*/function () {
   var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(event) {
     var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, noticeLines, _dueForNotice, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
     return _regenerator().w(function (_context16) {
@@ -2016,6 +2084,11 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           isProcessing = true;
           _event$target$dataset = event.target.dataset, action = _event$target$dataset.action, index = _event$target$dataset.index;
           item = items[Number(index)];
+          // 목록이 다시 그려지는 사이 인덱스가 어긋나면 item 이 없을 수 있다.
+          // 예전에는 곧바로 item.stock 을 읽어 예외로 죽었다.
+          if (!item || !action) {
+            return _context16.a(2);
+          }
           if (currentUser) {
             _context16.n = 3;
             break;
@@ -2099,13 +2172,10 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           item.stock = (Number(item.stock) || 0) - 1;
           dueLabel = (currentDueInfo || getDueInfo()).label;
           saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
-          // API 증분 동기화 (전체 저장과 중복 금지: 기록 중복/유실 방지)
-          apiPostSync({
-            action: 'updateStock',
-            itemName: item.name,
-            stock: item.stock
-          });
-          apiPostSync({
+          // 재고 차감은 서버가 addBorrowed 안에서 직접 −1 한다.
+          // 예전처럼 클라이언트가 계산한 절대값을 updateStock 으로 보내면,
+          // API 키만 있으면 누구나 모든 재고를 0으로 만들 수 있었다.
+          queueWrite({
             action: 'addBorrowed',
             record: borrowRecord
           });
@@ -2139,13 +2209,9 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           borrowedRecords.splice(borrowedIndex, 1);
           item.stock = (Number(item.stock) || 0) + 1;
           saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
-          // API 증분 동기화 (전체 저장과 중복 금지: 기록 중복/유실 방지)
-          apiPostSync({
-            action: 'updateStock',
-            itemName: item.name,
-            stock: item.stock
-          });
-          apiPostSync({
+          // 재고 복구는 서버가 removeBorrowed 안에서 실제 삭제된 건수만큼 +1 한다
+          // (중복 반납 요청이 재고를 부풀리지 않도록 서버가 멱등 처리)
+          queueWrite({
             action: 'removeBorrowed',
             studentId: removedRecord.studentId,
             itemName: removedRecord.itemName
@@ -2175,15 +2241,10 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
         case 11:
           item.stock = (Number(item.stock) || 0) - 1;
           saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
-          // API 증분 동기화 (추적됨)
-          apiPostSync({
-            action: 'updateStock',
-            itemName: item.name,
-            stock: item.stock
-          });
-          // 누적 대여·수령 카운터 +1 (소모품 수령도 합산)
-          apiPostSync({
-            action: 'recordConsume'
+          // 재고 −1 과 누적 카운터 +1 을 서버가 한 번에 처리한다
+          queueWrite({
+            action: 'recordConsume',
+            itemName: item.name
           });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uC218\uB839 \uC644\uB8CC! \uC18C\uBAA8\uD488\uC740 \uBC18\uB0A9\uD558\uC9C0 \uC54A\uC544\uB3C4 \uB429\uB2C8\uB2E4."), true);
@@ -2223,7 +2284,7 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
     return p;
   };
 }());
-editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
+on(editInfoBtn, "click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17() {
   var userBorrowed, warningMsg, confirmed;
   return _regenerator().w(function (_context17) {
     while (1) switch (_context17.n) {
@@ -2267,7 +2328,7 @@ editInfoBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__
     }
   }, _callee17);
 })));
-finishBtn.addEventListener("click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
+on(finishBtn, "click", /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
   var userBorrowed, summaryMsg, confirmed;
   return _regenerator().w(function (_context18) {
     while (1) switch (_context18.n) {
@@ -2353,8 +2414,17 @@ var clearAutoLogout = function clearAutoLogout() {
 };
 
 // 사용자 활동 감지
+// mousemove 는 초당 수십 번 오므로 그때마다 clearTimeout+setTimeout 을 돌리면
+// 구형 태블릿에서 부담이 된다. 1초에 한 번만 타이머를 다시 건다.
+var lastActivityReset = 0;
+var throttledResetAutoLogout = function throttledResetAutoLogout() {
+  var now = Date.now();
+  if (now - lastActivityReset < 1000) return;
+  lastActivityReset = now;
+  resetAutoLogout();
+};
 ['click', 'touchstart', 'mousemove', 'keydown'].forEach(function (event) {
-  document.addEventListener(event, resetAutoLogout, {
+  document.addEventListener(event, throttledResetAutoLogout, {
     passive: true
   });
 });
@@ -2471,7 +2541,7 @@ if (backToHomeBtn) {
 
 
 // 변경 로그 화면에서 돌아가기 버튼
-backFromChangelogBtn.addEventListener("click", function () {
+on(backFromChangelogBtn, "click", function () {
   showStep("admin");
 });
 
@@ -2628,24 +2698,48 @@ function _handleAdminTitleTap() {
   }));
   return _handleAdminTitleTap.apply(this, arguments);
 }
-adminTitle.addEventListener("touchend", handleAdminTitleTap);
-adminTitle.addEventListener("click", handleAdminTitleTap);
+on(adminTitle, "touchend", handleAdminTitleTap);
+on(adminTitle, "click", handleAdminTitleTap);
 
 // 2. 관리자 모드에서 로그아웃 버튼 이벤트 리스너 추가
-logoutAdminBtn.addEventListener("click", function () {
-  adminAuthPassword = null; // 관리자 세션 종료 시 비밀번호 폐기
-  showStep("home");
-});
+if (logoutAdminBtn) {
+  logoutAdminBtn.addEventListener("click", function () {
+    // 아직 못 보낸 관리자 변경이 있으면 알린다.
+    // 로그아웃하면 비밀번호가 사라져 그 요청들은 더 보낼 수 없다.
+    var adminPending = pendingWrites.filter(function (e) {
+      return e.needsAdmin;
+    }).length;
+    if (adminPending > 0) {
+      showConfirm({
+        icon: '⚠️',
+        title: '전송 대기 중',
+        message: '서버에 아직 반영되지 않은 변경 ' + adminPending + '건이 있습니다. 잠시 후 다시 로그아웃해 주세요.',
+        autoClose: 3000
+      });
+      return;
+    }
+
+    adminAuthPassword = null; // 관리자 세션 종료 시 비밀번호 폐기
+    // 관리자 화면에서만 쓰던 개인정보를 메모리에서도 지운다
+    borrowedRecords = stripBorrowedPii(borrowedRecords);
+    loginLog = [];
+    showStep("home");
+  });
+}
 
 // 연체자 화면으로 이동
-viewOverdueBtn.addEventListener("click", function () {
-  showStep("overdue");
-});
+if (viewOverdueBtn) {
+  viewOverdueBtn.addEventListener("click", function () {
+    showStep("overdue");
+  });
+}
 
 // 관리자 모드로 돌아가기
-backToAdminBtn.addEventListener("click", function () {
-  showStep("admin");
-});
+if (backToAdminBtn) {
+  backToAdminBtn.addEventListener("click", function () {
+    showStep("admin");
+  });
+}
 
 // 물품 추가 기능
 var addItemBtn = document.getElementById("addItemBtn");
@@ -2653,7 +2747,7 @@ var newItemName = document.getElementById("newItemName");
 var newItemType = document.getElementById("newItemType");
 var newItemStock = document.getElementById("newItemStock");
 var newItemNotice = document.getElementById("newItemNotice");
-addItemBtn.addEventListener("click", function () {
+on(addItemBtn, "click", function () {
   var name = newItemName.value.trim().replace(/[<>"'&]/g, '');
   var type = newItemType.value;
   var stock = Math.max(0, Math.min(9999, parseInt(newItemStock.value) || 0));
@@ -2680,15 +2774,17 @@ addItemBtn.addEventListener("click", function () {
     });
     return;
   }
-  items.push({
+  var newItem = {
     name: name,
     type: type,
     stock: stock,
     maxStock: stock, // 최대 재고는 일단 초기 재고와 동일 — 이후 '수정'에서 조정한다
     notice: notice || "",
     icon: icon
-  });
-  saveData(); // 데이터 저장
+  };
+  items.push(newItem);
+  saveLocalCache();
+  syncUpsertItem(newItem); // 이 물품 한 건만 서버에 반영
   addChangeLog("물품 추가", "".concat(name, " (").concat(type, ", \uC7AC\uACE0: ").concat(stock, "\uAC1C) \uCD94\uAC00\uB428"));
 
   // 입력 필드 초기화
@@ -2796,7 +2892,9 @@ window.saveEditItem = function (index) {
     });
   }
 
-  saveData(); // items + borrowedRecords 를 함께 저장 (이름 변경이 기록에도 반영돼야 함)
+  saveLocalCache();
+  // 이름을 바꿨다면 oldName 을 함께 보낸다 → 서버가 대여 기록의 물품명도 같이 고친다
+  syncUpsertItem(items[index], oldName);
   addChangeLog('물품 수정', newName + ': ' + changes.join(', ') + (renamedRecords > 0 ? ' (대여 기록 ' + renamedRecords + '건 함께 수정)' : ''));
 
   adminEditIndex = -1;
@@ -2821,122 +2919,89 @@ window.updateStock = function (index, change) {
   items[index].stock = next;
   var newStock = next;
   saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
-  // API 증분 동기화 (추적됨)
-  apiPostSync({
+  // 관리자가 직접 지정하는 값이므로 절대값 전송 + 관리자 인증 필요
+  queueWrite({
     action: 'updateStock',
     itemName: item.name,
     stock: newStock
-  });
+  }, { needsAdmin: true });
   addChangeLog("재고 변경", "".concat(item.name, ": ").concat(oldStock, "\uAC1C \u2192 ").concat(newStock, "\uAC1C ").concat(change > 0 ? "(+1)" : "(-1)"));
   renderAdminData();
   renderItems();
 };
 
 // 강제 반납 함수 (전역 함수로 만들기 위해 window 객체에 할당)
-window.forceReturn = /*#__PURE__*/function () {
-  var _ref21 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(studentId, itemName, dueDate) {
-    var recordIndex, record, password, isValid, item;
-    return _regenerator().w(function (_context21) {
-      while (1) switch (_context21.n) {
-        case 0:
-          // borrowedRecords에서 해당 기록 찾기
-          recordIndex = borrowedRecords.findIndex(function (r) {
-            return String(r.studentId) === String(studentId) && r.itemName === itemName && r.dueDate === dueDate;
-          });
-          if (!(recordIndex === -1)) {
-            _context21.n = 1;
-            break;
-          }
-          showConfirm({
-            icon: '⚠️',
-            title: '알림',
-            message: '대여 기록을 찾을 수 없습니다.',
-            autoClose: 2000
-          });
-          return _context21.a(2);
-        case 1:
-          record = borrowedRecords[recordIndex]; // 중요 작업: 비밀번호 재확인
-          _context21.n = 2;
-          return showPasswordPrompt("중요한 작업입니다.\n관리자 비밀번호를 다시 입력하세요");
-        case 2:
-          password = _context21.v;
-          if (!(password === null)) {
-            _context21.n = 3;
-            break;
-          }
-          return _context21.a(2);
-        case 3:
-          _context21.n = 4;
-          return verifyAdminPassword(password);
-        case 4:
-          isValid = _context21.v;
-          if (isValid) {
-            _context21.n = 5;
-            break;
-          }
-          showConfirm({
-            icon: '🔒',
-            title: '접근 거부',
-            message: '비밀번호가 틀렸습니다.',
-            autoClose: 2000
-          });
-          return _context21.a(2);
-        case 5:
-          if (confirm("\"".concat(record.name, "\"\uB2D8\uC758 \"").concat(record.itemName, "\" \uAC15\uC81C \uBC18\uB0A9\uC744 \uCC98\uB9AC\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context21.n = 6;
-            break;
-          }
-          return _context21.a(2);
-        case 6:
-          // 해당 물품 찾기
-          item = items.find(function (i) {
-            return i.name === record.itemName;
-          });
-          if (item) {
-            item.stock = (Number(item.stock) || 0) + 1; // 재고 증가
-          }
+window.forceReturn = async function (studentId, itemName, dueDate) {
+  // borrowedRecords에서 해당 기록 찾기
+  var recordIndex = borrowedRecords.findIndex(function (r) {
+    return String(r.studentId) === String(studentId) &&
+      String(r.itemName) === String(itemName) &&
+      String(r.dueDate) === String(dueDate);
+  });
+  if (recordIndex === -1) {
+    showConfirm({
+      icon: '⚠️',
+      title: '알림',
+      message: '대여 기록을 찾을 수 없습니다.',
+      autoClose: 2000
+    });
+    return;
+  }
+  var record = borrowedRecords[recordIndex];
 
-          // 대여 기록 삭제
-          borrowedRecords.splice(recordIndex, 1);
+  // 중요 작업: 비밀번호 재확인
+  var password = await showPasswordPrompt('중요한 작업입니다. 관리자 비밀번호를 다시 입력하세요');
+  if (password === null) return;
+  var isValid = await verifyAdminPassword(password);
+  if (!isValid) {
+    showConfirm({
+      icon: '🔒',
+      title: '접근 거부',
+      message: '비밀번호가 틀렸습니다.',
+      autoClose: 2000
+    });
+    return;
+  }
 
-          // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
-          saveLocalCache();
-          // API 증분 동기화 (추적됨)
-          if (item) {
-            apiPostSync({
-              action: 'updateStock',
-              itemName: item.name,
-              stock: item.stock
-            });
-          }
-          apiPostSync({
-            action: 'removeBorrowed',
-            studentId: record.studentId,
-            itemName: record.itemName
-          });
+  var confirmed = await showConfirm({
+    icon: '↩️',
+    title: '강제 반납',
+    message: '"' + (record.name || record.studentId) + '"님의 "' + record.itemName + '" 강제 반납을 처리하시겠습니까?'
+  });
+  if (!confirmed) return;
 
-          // 변경 로그 추가
-          addChangeLog("강제 반납", "".concat(record.name, "(").concat(record.studentId, ")\uC758 ").concat(record.itemName, " \uAC15\uC81C \uBC18\uB0A9 \uCC98\uB9AC"));
+  // 해당 물품 재고 복구 (로컬 표시용 — 서버는 removeBorrowed 안에서 함께 올린다)
+  var item = items.find(function (i) {
+    return i.name === record.itemName;
+  });
+  if (item) {
+    var max = getMaxStock(item);
+    var next = (Number(item.stock) || 0) + 1;
+    item.stock = max > 0 ? Math.min(next, max) : next;
+  }
 
-          // 화면 업데이트
-          renderAdminData();
-          renderOverdueData();
-          renderItems();
-          showConfirm({
-            icon: '✅',
-            title: '강제 반납',
-            message: record.itemName + ' 강제 반납이 처리되었습니다.',
-            autoClose: 2000
-          });
-        case 7:
-          return _context21.a(2);
-      }
-    }, _callee21);
-  }));
-  return function (_x13, _x14, _x15) {
-    return _ref21.apply(this, arguments);
-  };
-}();
+  // 대여 기록 삭제
+  borrowedRecords.splice(recordIndex, 1);
+
+  saveLocalCache();
+  queueWrite({
+    action: 'removeBorrowed',
+    studentId: record.studentId,
+    itemName: record.itemName
+  });
+
+  addChangeLog('강제 반납', (record.name || '') + '(' + record.studentId + ')의 ' + record.itemName + ' 강제 반납 처리');
+
+  renderAdminData();
+  renderOverdueData();
+  renderItems();
+  showConfirm({
+    icon: '✅',
+    title: '강제 반납',
+    message: record.itemName + ' 강제 반납이 처리되었습니다.',
+    autoClose: 2000
+  });
+};
 
 // 물품 순서 변경 함수 (드래그 앤 드롭용)
 window.moveItemTo = function (fromIndex, toIndex) {
@@ -2951,8 +3016,10 @@ window.moveItemTo = function (fromIndex, toIndex) {
     movedItem = _items$splice2[0];
   items.splice(toIndex, 0, movedItem);
 
-  // 데이터 저장
-  saveData();
+  // 순서만 서버에 보낸다. 재고 등 값은 서버가 시트의 현재 값을 유지하므로
+  // 관리자 기기의 오래된 재고가 서버로 되밀리지 않는다.
+  saveLocalCache();
+  syncReorderItems();
 
   // 변경 로그 추가
   addChangeLog("물품 순서 변경", "".concat(movedItem.name, "\uC758 \uC21C\uC11C \uBCC0\uACBD"));
@@ -2971,46 +3038,32 @@ window.moveItem = function (index, direction) {
 };
 
 // 물품 삭제 함수
-window.deleteItem = /*#__PURE__*/function () {
-  var _ref22 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(index) {
-    var item;
-    return _regenerator().w(function (_context22) {
-      while (1) switch (_context22.n) {
-        case 0:
-          if (!(index < 0 || index >= items.length)) {
-            _context22.n = 1;
-            break;
-          }
-          return _context22.a(2);
-        case 1:
-          item = items[index];
-          if (confirm("\"".concat(item.name, "\" \uBB3C\uD488\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"))) {
-            _context22.n = 2;
-            break;
-          }
-          return _context22.a(2);
-        case 2:
-          items.splice(index, 1);
-          adminEditIndex = -1; // 삭제로 인덱스가 밀리므로 수정 모드 해제
-          saveData();
-          addChangeLog("물품 삭제", "".concat(item.name, " \uC0AD\uC81C\uB428"));
-          renderAdminData();
-          renderItems();
-          showConfirm({
-            icon: '✅',
-            title: '물품 삭제',
-            message: item.name + ' 물품이 삭제되었습니다.',
-            autoClose: 2000
-          });
-        case 3:
-          return _context22.a(2);
-      }
-    }, _callee22);
-  }));
-  return function (_x16) {
-    return _ref22.apply(this, arguments);
-  };
-}();
+window.deleteItem = async function (index) {
+  if (index < 0 || index >= items.length) return;
+  var item = items[index];
+  // 네이티브 confirm() 은 전체화면 PWA 에서 스타일이 깨지고 브라우저 설정에
+  // 따라 아예 차단되기도 한다. 다른 곳과 같은 showConfirm 을 쓴다.
+  var confirmed = await showConfirm({
+    icon: '🗑️',
+    title: '물품 삭제',
+    message: '"' + item.name + '" 물품을 삭제하시겠습니까?'
+  });
+  if (!confirmed) return;
+
+  items.splice(index, 1);
+  adminEditIndex = -1; // 삭제로 인덱스가 밀리므로 수정 모드 해제
+  saveLocalCache();
+  syncDeleteItem(item.name); // 이 물품 한 건만 서버에서 제거
+  addChangeLog('물품 삭제', item.name + ' 삭제됨');
+  renderAdminData();
+  renderItems();
+  showConfirm({
+    icon: '✅',
+    title: '물품 삭제',
+    message: item.name + ' 물품이 삭제되었습니다.',
+    autoClose: 2000
+  });
+};
 
 // 팝업 드래그 기능 공통 함수
 function makeDraggable(cardElement) {

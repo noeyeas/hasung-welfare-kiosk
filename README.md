@@ -60,9 +60,11 @@
 ├── service-worker.js     # 서비스 워커 (오프라인 지원)
 ├── manifest.json         # PWA 매니페스트
 ├── logo.png              # 앱 아이콘
-├── google-apps-script.js # 백엔드 (Google Apps Script에 붙여넣어 배포)
-└── hasung-kiosk-v2/      # Vue 3 재작성 버전 (개발 중, 미배포)
+└── google-apps-script.js # 백엔드 (Google Apps Script에 붙여넣어 배포)
 ```
+
+> Vue 3 재작성본(`hasung-kiosk-v2/`)은 미배포 상태로 방치돼 어느 쪽이 원본인지
+> 혼동을 주어 삭제했습니다. 필요하면 git 이력에서 되살릴 수 있습니다.
 
 ## 🔧 기술 스택
 
@@ -95,6 +97,48 @@
 `js/script.js` 나 `css/styles.css` 를 수정했다면 `index.html` 의 `?v=` 값을,
 `service-worker.js` 를 수정했다면 `CACHE_NAME` 의 버전을 올려야 기기에 반영됩니다.
 
+서비스 워커가 `js/script.js` 를 쿼리 없이 미리 캐시하므로, 스크립트를 고쳤다면
+`?v=` 와 `CACHE_NAME` 을 **함께** 올리는 편이 안전합니다.
+
+### 로컬 스모크 테스트
+
+`node .claude/smoke-test.js` 로 `js/script.js` 를 최소 DOM 스텁 위에서 실행해
+볼 수 있습니다. 참조 오류·초기화 순서 문제, 대여/반납 요청이 서버로 나가는지,
+재시도 큐가 도는지, 개인정보가 LocalStorage 에 남지 않는지를 확인합니다.
+(`.claude/` 는 배포에 포함되지 않습니다)
+
+## 🔐 백엔드 배포 시 필수 설정
+
+> **`ADMIN_PASSWORD_HASH` 를 반드시 설정해야 합니다.**
+>
+> Apps Script 편집기 → 프로젝트 설정 → 스크립트 속성에
+> `ADMIN_PASSWORD_HASH` = *관리자 비밀번호의 SHA-256 hex* 를 넣으세요.
+>
+> 예전에는 이 값이 비어 있으면 관리자 인증을 그냥 통과시켰습니다. API 키가
+> 정적 사이트에 그대로 실려 나가는 구조라, 그 상태에서는 소스만 보면 누구나
+> 물품 추가·수정·삭제를 할 수 있었습니다. 지금은 **미설정 시 관리자 액션이
+> 전부 거부**됩니다(fail-closed). 설정하지 않으면 관리자 화면에서
+> `Admin auth not configured` 오류가 납니다.
+
+해시 만드는 법 (예):
+
+```bash
+printf '내비밀번호' | sha256sum
+```
+
+기존 시트를 쓰던 경우 편집기에서 `backfillMaxStock()` 을 한 번 실행하세요.
+`maxStock` 이 비어 있으면 재고 부족 경고가 뜨지 않습니다.
+
+### 권한 구분
+
+| 액션 | 관리자 인증 |
+|---|---|
+| `getAllAdmin`, `upsertItem`, `deleteItem`, `reorderItems`, `updateStock` | 필요 |
+| `addBorrowed`, `removeBorrowed`, `recordConsume`, `addChangeLog`, `addLoginLog` | 불필요 (입력 검증 + 액션별 rate limit) |
+
+학생 흐름의 재고 증감은 **서버가 직접 ±1** 합니다. 클라이언트가 계산한 절대값을
+받지 않으므로, API 키만으로 재고를 임의의 값으로 바꿀 수 없습니다.
+
 ## 📝 참고사항
 
 - PWA 설치를 위해서는 **HTTPS** 환경이 필요합니다
@@ -102,3 +146,9 @@
 - 물품·대여 데이터는 Google Sheets에 저장되며, LocalStorage는 오프라인 캐시 용도입니다
 - 백엔드 설정값(시트 ID, API 키, 관리자 비밀번호 해시)은 Apps Script의
   **스크립트 속성**에 저장합니다. 자세한 항목은 `google-apps-script.js` 상단 주석 참고
+- **개인정보는 기기에 저장하지 않습니다.** 이름·전화번호는 서버로만 보내고,
+  LocalStorage 캐시(`kiosk_borrowed`)에는 학번·물품명·기한만 남깁니다.
+  관리자 화면의 이름·연락처는 서버에서 받아 메모리에서만 사용하며,
+  로그아웃 시 즉시 지웁니다. 오프라인일 때 이름·연락처가 `-` 로 보이는 것은 정상입니다
+- 서버 전송에 실패한 변경은 `kiosk_pendingWrites` 큐에 남아 지수 백오프로
+  재시도합니다. 앱을 껐다 켜도 이어서 보냅니다
