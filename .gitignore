@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# 로컬 확인용 도구 (배포와 무관)
+.claude/
