@@ -1276,6 +1276,9 @@ var showStep = function showStep(step) {
   if (userInfoPopup) userInfoPopup.classList.add("hidden");
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
+  // 화면을 옮기면 숫자 키패드는 항상 닫는다.
+  // (initApp 이 이 파일 아래쪽 정의보다 먼저 showStep 을 부를 수 있어 typeof 로 방어)
+  if (typeof closeNumPad === "function") closeNumPad();
   var mobileBorrowedPanelEl = document.getElementById("mobileBorrowedPanel");
   if (mobileBorrowedPanelEl) mobileBorrowedPanelEl.classList.add("hidden");
   if (brandLogo) brandLogo.classList.add("hidden");
@@ -3226,3 +3229,82 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// ========================================
+// 숫자 키패드 (학번 · 전화번호)
+// ========================================
+// 키오스크는 물리 키보드가 없고, 키오스크 모드 브라우저에서는 OS 가상 키보드가
+// 아예 안 뜨는 경우가 있어 입력 자체가 막힌다. 대상 입력칸에 inputmode="none" 을
+// 걸어 OS 키보드를 억제하고, 화면 안의 이 키패드로 입력받는다.
+var numPad = document.getElementById("numPad");
+var numPadLabel = document.getElementById("numPadLabel");
+var numPadCloseBtn = document.getElementById("numPadClose");
+var numPadTarget = null;
+
+var closeNumPad = function closeNumPad() {
+  if (!numPad) return;
+  numPad.classList.add("hidden");
+  document.body.classList.remove("numpad-open");
+  numPadTarget = null;
+};
+
+var openNumPad = function openNumPad(input) {
+  if (!numPad || !input) return;
+  numPadTarget = input;
+  var label = document.querySelector('label[for="' + input.id + '"]');
+  if (numPadLabel) numPadLabel.textContent = label ? label.textContent : "숫자 입력";
+  numPad.classList.remove("hidden");
+  document.body.classList.add("numpad-open");
+  // 키패드에 가려지지 않도록 입력칸을 보이는 위치로 끌어올린다
+  if (input.scrollIntoView) {
+    input.scrollIntoView({ block: "center" });
+  }
+};
+
+// 키패드 입력을 실제 입력칸에 반영. maxlength 를 넘기지 않고,
+// 다른 코드가 듣고 있을 수 있으므로 input 이벤트를 발생시킨다.
+var applyNumPadKey = function applyNumPadKey(key) {
+  if (!numPadTarget) return;
+  var value = numPadTarget.value;
+  if (key === "back") {
+    value = value.slice(0, -1);
+  } else if (key === "clear") {
+    value = "";
+  } else {
+    var max = parseInt(numPadTarget.getAttribute("maxlength"), 10);
+    if (!isNaN(max) && value.length >= max) return;
+    value = value + key;
+  }
+  numPadTarget.value = value;
+  numPadTarget.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+if (numPad) {
+  // mousedown/touchstart 기본 동작을 막아야 입력칸이 포커스를 잃지 않는다
+  numPad.addEventListener("mousedown", function (e) {
+    e.preventDefault();
+  });
+  numPad.addEventListener("click", function (e) {
+    var keyBtn = e.target.closest ? e.target.closest(".numpad-key") : null;
+    if (!keyBtn) return;
+    applyNumPadKey(keyBtn.getAttribute("data-key"));
+  });
+}
+if (numPadCloseBtn) {
+  numPadCloseBtn.addEventListener("click", closeNumPad);
+}
+
+// 대상 입력칸에 포커스가 가면 열고, 다른 곳으로 나가면 닫는다
+["studentId", "phone"].forEach(function (id) {
+  var input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("focus", function () {
+    openNumPad(input);
+  });
+});
+document.addEventListener("focusin", function (e) {
+  if (!numPadTarget) return;
+  if (e.target === numPadTarget) return;
+  if (numPad && numPad.contains(e.target)) return;
+  closeNumPad();
+});

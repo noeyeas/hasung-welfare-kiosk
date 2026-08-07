@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=74">
+    <link rel="stylesheet" href="css/styles.css?v=75">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -207,12 +207,14 @@
                 </div>
                 <div class="field">
                     <label for="studentId">학번 (10자리 숫자)</label>
-                    <input id="studentId" name="studentId" type="tel" inputmode="numeric" maxlength="10" autocomplete="off" required>
+                    <!-- inputmode="none": OS 가상 키보드를 띄우지 않고 화면 내 숫자 키패드(#numPad)를 쓴다.
+                         물리 키보드 입력은 그대로 동작한다. -->
+                    <input id="studentId" name="studentId" type="tel" inputmode="none" maxlength="10" autocomplete="off" required>
                     <div id="studentIdError" class="error" aria-live="polite"></div>
                 </div>
                 <div class="field">
                     <label for="phone">전화번호 ('-' 없이 11자리)</label>
-                    <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="off" required>
+                    <input id="phone" name="phone" type="tel" inputmode="none" maxlength="11" autocomplete="off" required>
                     <div id="phoneError" class="error" aria-live="polite"></div>
                 </div>
                 <div class="field">
@@ -225,6 +227,28 @@
                 <button class="btn-primary" type="submit" id="submitBtn">다음 단계 →</button>
             </form>
         </section>
+
+        <!-- 숫자 키패드 — 학번·전화번호 입력 시 화면 하단에 뜬다 -->
+        <div id="numPad" class="numpad hidden" role="group" aria-label="숫자 키패드">
+            <div class="numpad-head">
+                <span id="numPadLabel" class="numpad-label"></span>
+                <button type="button" id="numPadClose" class="numpad-close">닫기</button>
+            </div>
+            <div class="numpad-keys">
+                <button type="button" class="numpad-key" data-key="1">1</button>
+                <button type="button" class="numpad-key" data-key="2">2</button>
+                <button type="button" class="numpad-key" data-key="3">3</button>
+                <button type="button" class="numpad-key" data-key="4">4</button>
+                <button type="button" class="numpad-key" data-key="5">5</button>
+                <button type="button" class="numpad-key" data-key="6">6</button>
+                <button type="button" class="numpad-key" data-key="7">7</button>
+                <button type="button" class="numpad-key" data-key="8">8</button>
+                <button type="button" class="numpad-key" data-key="9">9</button>
+                <button type="button" class="numpad-key is-muted" data-key="clear">전체 지우기</button>
+                <button type="button" class="numpad-key" data-key="0">0</button>
+                <button type="button" class="numpad-key is-muted" data-key="back">← 지우기</button>
+            </div>
+        </div>
 
         <section id="step-items" class="hidden">
             <div class="items-toolbar">
@@ -315,6 +339,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=82"></script>
+    <script src="js/script.js?v=83"></script>
 </body>
 </html>

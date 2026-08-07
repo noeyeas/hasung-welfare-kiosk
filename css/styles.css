@@ -1489,3 +1489,83 @@ select {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================================
+   숫자 키패드 (학번 · 전화번호 입력)
+   ============================================================ */
+/* 화면 하단 고정. 마퀴 바(--marquee-h) 위에 앉힌다. */
+.numpad {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(var(--marquee-h) + 12px);
+    z-index: 2500;
+    width: min(430px, calc(100vw - 24px));
+    padding: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-2);
+}
+.numpad-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.numpad-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-2);
+}
+.numpad-close {
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 8px 14px;
+    min-height: 40px;
+    cursor: pointer;
+}
+.numpad-keys {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.numpad-key {
+    font-family: inherit;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    /* 터치 오입력을 줄이기 위한 충분한 타깃 크기 */
+    min-height: var(--touch);
+    cursor: pointer;
+    user-select: none;
+}
+.numpad-key:active {
+    background: var(--line);
+}
+.numpad-key.is-muted {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+/* 키패드가 열려 있는 동안 본문 아래쪽에 여백을 줘서
+   입력칸과 '다음 단계' 버튼이 키패드에 가리지 않게 한다. */
+body.numpad-open .kiosk {
+    padding-bottom: 340px;
+}
+
+@media (max-width: 820px) {
+    .numpad {
+        width: calc(100vw - 20px);
+    }
+}
