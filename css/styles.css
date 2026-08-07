@@ -1597,7 +1597,14 @@ body.hanpad-open .user-layout {
 /* ============================================================
    물품 선택 화면 · 대여자 정보 칩
    ============================================================ */
-/* 떠 있는 카드(.user-chip {
+/* 떠 있는 카드는 화면이 좁을 때 물품 카드를 덮어서, 흐름 안의 칩으로 바꿨다. */
+.user-chips {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.user-chip {
     font-size: 0.72rem;
     color: var(--text-2);
     background: var(--surface-3);

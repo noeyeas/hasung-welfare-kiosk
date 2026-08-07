@@ -239,6 +239,7 @@ var showConfirm = function showConfirm(options) {
       title = _options.title,
       stock = _options.stock,
       message = _options.message,
+      messageHtml = _options.messageHtml,
       autoClose = _options.autoClose;
     if (confirmIcon) confirmIcon.textContent = icon || '📦';
     if (confirmTitle) confirmTitle.textContent = title || '';
@@ -250,7 +251,15 @@ var showConfirm = function showConfirm(options) {
         confirmStock.textContent = '';
       }
     }
-    if (confirmMessage) confirmMessage.textContent = message || '';
+    // messageHtml 은 강조 표시가 필요한 곳에서만 쓴다. 넘기는 쪽에서 반드시
+    // escapeHtml 로 감싼 값만 넣어야 한다. 그 외에는 textContent 로 안전하게 둔다.
+    if (confirmMessage) {
+      if (messageHtml) {
+        confirmMessage.innerHTML = messageHtml;
+      } else {
+        confirmMessage.textContent = message || '';
+      }
+    }
 
     // 버튼 영역 표시/숨기기
     var btnArea = confirmOk ? confirmOk.parentElement : null;
@@ -1811,7 +1820,9 @@ var renderItems = function renderItems() {
       // 반납 흐름: 목록 자체가 대여 중인 물품이므로 반납 버튼만 노출한다
       actionsHtml = '<button class="borrow" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
     } else if (item.type === "대여") {
-      actionsHtml = '<button class="borrow' + (outOfStock ? ' disabled' : '') + '" data-action="borrow" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '대여하기') + '</button>' + '<button class="secondary" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
+      // 대여 흐름에서는 대여 버튼만 둔다. 반납은 홈의 '반납하기'로 들어오는
+      // 별도 흐름이 담당하므로 여기 반납 버튼은 오히려 오조작을 부른다.
+      actionsHtml = '<button class="borrow' + (outOfStock ? ' disabled' : '') + '" data-action="borrow" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '대여하기') + '</button>';
     } else {
       actionsHtml = '<button class="consume' + (outOfStock ? ' disabled' : '') + '" data-action="consume" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '수령하기') + '</button>';
     }
@@ -2264,19 +2275,22 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           _dueForNotice = currentDueInfo || getDueInfo();
           noticeLines = [];
           if (item.notice && item.notice.trim()) {
-            noticeLines.push("⚠️ ".concat(item.notice));
+            noticeLines.push("⚠️ " + escapeHtml(item.notice));
           }
-          noticeLines.push("📅 반납 기한: ".concat(_dueForNotice.label));
+          // 반납 기한은 가장 중요한 정보라 붉게 강조한다
+          noticeLines.push("📅 반납 기한: <span style=\"color: #ff7a7a; font-weight: 700;\">" + escapeHtml(_dueForNotice.label) + "</span>");
           noticeLines.push("💸 기한 초과 시 1일당 2,000원 (주말 포함)");
-          noticeLines.push(_dueForNotice.isWeekendPenalty ? "주말에도 벌금이 부과됩니다." : "금요일 대여는 다음 주 월요일 18:00까지 반납");
+          if (_dueForNotice.isWeekendPenalty) {
+            noticeLines.push("주말에도 벌금이 부과됩니다.");
+          }
           noticeLines.push("🔧 분실·파손 시 동일 제품으로 변상");
-          noticeMsg = noticeLines.join(String.fromCharCode(10));
+          noticeMsg = noticeLines.join("<br>");
           _context16.n = 7;
           return showConfirm({
             icon: item.icon || '📦',
             title: "".concat(item.name, " \uB300\uC5EC"),
             stock: item.stock,
-            message: noticeMsg
+            messageHtml: noticeMsg
           });
         case 7:
           // 사용자가 취소를 누르면 대여를 진행하지 않는다
