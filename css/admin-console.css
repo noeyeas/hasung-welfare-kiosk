@@ -2,6 +2,16 @@
    관리자 콘솔 — 사이드바 셸 레이아웃
    styles.css 다음에 로드된다 (index.html)
    ============================================================ */
+/* 관리자 콘솔이 열려 있으면 .kiosk 는 화면을 넓게 쓴다.
+   예전 코드가 남긴 인라인 margin-left(고정 팝업 자리)도 여기서 무력화된다. */
+.kiosk:has(> #step-admin:not(.hidden)),
+.kiosk:has(> #step-changelog:not(.hidden)) {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: min(1600px, 100%) !important;
+    max-width: 100%;
+}
+
 .admin-shell {
     display: grid;
     grid-template-columns: 236px minmax(0, 1fr);
@@ -239,14 +249,49 @@
 .admin-tag.is-warn { color: var(--amber);   background: var(--amber-soft);   border-color: rgba(245, 178, 92, 0.3); }
 .admin-tag.is-bad  { color: var(--danger);  background: var(--danger-soft);  border-color: rgba(255, 122, 122, 0.3); }
 .admin-tag.is-mute { color: var(--text-3);  background: var(--surface-3);    border-color: var(--line); }
-.admin-bar {
-    height: 5px;
-    margin-top: 6px;
-    border-radius: 3px;
-    background: var(--surface-3);
-    overflow: hidden;
+/* ── 행 액션 버튼 · 인라인 수정 ── */
+.admin-row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
-.admin-bar > i { display: block; height: 100%; border-radius: 3px; }
+.admin-btn.is-primary {
+    background: linear-gradient(145deg, var(--primary), var(--primary-2));
+    border-color: transparent;
+    color: #fff;
+}
+tr.is-editing {
+    background: var(--primary-soft);
+}
+tr.is-editing td { border-bottom-color: var(--primary-line); }
+.admin-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface-3);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.74rem;
+}
+.admin-input:focus {
+    outline: none;
+    border-color: var(--primary-line);
+    background: var(--surface);
+}
+.admin-input.is-icon {
+    width: 62px;
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 1.1rem;
+}
+.admin-edit-name {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
 
 /* ── 순서 이동 버튼 ── */
 .admin-move {
@@ -412,6 +457,9 @@
         color: var(--text-3);
     }
     .admin-data-table td:not([data-th])::before { display: none; }
-    .admin-data-table td .admin-bar { width: 120px; margin-top: 0; }
+    /* 카드 모드에서는 입력칸이 라벨 옆에서 충분히 넓어야 한다 */
+    .admin-data-table td .admin-input { max-width: 62%; }
+    .admin-data-table td .admin-edit-name { max-width: 62%; }
+    .admin-data-table td .admin-edit-name .admin-input { max-width: none; }
     .admin-data-table colgroup { display: none; }
 }

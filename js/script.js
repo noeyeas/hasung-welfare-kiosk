@@ -1285,6 +1285,8 @@ var currentStepName = null;
 // ============================================================
 var adminPanelName = 'dash';
 var adminStockFilter = 'all';
+var adminEditIndex = -1;   // 재고 표에서 인라인 수정 중인 행 (없으면 -1)
+var adminEditFocus = false;
 var adminStockQuery = '';
 var adminLendQuery = '';
 
@@ -1626,15 +1628,13 @@ var renderAdminData = function renderAdminData() {
     }).join('');
   }
 
-  // 1. 재고 현황 테이블 렌더링 (검색 · 필터 · 상태 태그)
-  var maxStock = items.reduce(function (m, it) {
-    return Math.max(m, Number(it.stock) || 0);
-  }, 0) || 1;
+  // 1. 재고 현황 테이블 렌더링 (검색 · 필터 · 상태 태그 · 인라인 수정)
   var stockRows = items.map(function (item, index) {
     return { item: item, index: index };
   }).filter(function (row) {
     var it = row.item;
     var stock = Number(it.stock) || 0;
+    if (row.index === adminEditIndex) return true; // 수정 중인 행은 필터와 무관하게 계속 보인다
     if (adminStockFilter === 'low' && stock > 1) return false;
     if (adminStockFilter !== 'all' && adminStockFilter !== 'low' && it.type !== adminStockFilter) return false;
     if (adminStockQuery && String(it.name || '').toLowerCase().indexOf(adminStockQuery) === -1) return false;
@@ -1648,14 +1648,30 @@ var renderAdminData = function renderAdminData() {
       var item = row.item;
       var index = row.index;
       var stock = Number(item.stock) || 0;
+
+      // ── 수정 모드 행 ──
+      if (index === adminEditIndex) {
+        return '<tr class="is-editing" data-index="' + index + '">' + '<td data-th="순서" style="text-align: center;">✏️</td>' + '<td data-th="물품명">' + '<div class="admin-edit-name">' + '<input id="editIcon" class="admin-input is-icon" type="text" value="' + escapeHtml(item.icon || '') + '" placeholder="🌂" maxlength="4">' + '<input id="editName" class="admin-input" type="text" value="' + escapeHtml(item.name || '') + '" placeholder="물품명">' + '</div>' + '</td>' + '<td data-th="구분">' + '<select id="editType" class="admin-input">' + '<option value="대여"' + (item.type === '대여' ? ' selected' : '') + '>대여</option>' + '<option value="소모품"' + (item.type === '소모품' ? ' selected' : '') + '>소모품</option>' + '</select>' + '</td>' + '<td data-th="재고"><input id="editStock" class="admin-input" type="number" min="0" max="9999" value="' + stock + '"></td>' + '<td data-th="상태"><span class="admin-tag is-mute">수정 중</span></td>' + '<td data-th="주의사항"><input id="editNotice" class="admin-input" type="text" value="' + escapeHtml(item.notice || '') + '" placeholder="주의사항"></td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="saveEditItem(' + index + ')" class="admin-btn is-primary">저장</button>' + '<button onclick="cancelEditItem()" class="admin-btn">취소</button>' + '</div>' + '</td>' + '</tr>';
+      }
+
+      // ── 일반 행 ──
       var tag = stock === 0 ? '<span class="admin-tag is-bad">품절</span>' : stock <= 1 ? '<span class="admin-tag is-bad">부족</span>' : stock <= 4 ? '<span class="admin-tag is-warn">보통</span>' : '<span class="admin-tag is-ok">충분</span>';
-      var barColor = stock <= 1 ? 'var(--danger)' : stock <= 4 ? 'var(--amber)' : 'var(--success)';
-      var pct = Math.max(2, Math.round(stock / maxStock * 100));
-      return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end;">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)">−</button>' + '<span>' + stock + '개</span>' + '<button onclick="updateStock(' + index + ', 1)">＋</button>' + '</div>' + '<div class="admin-bar" style="flex: 1; min-width: 60px; max-width: 120px;"><i style="width: ' + pct + '%; background: ' + barColor + ';"></i></div>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리"><button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button></td>' + '</tr>';
+      var iconLabel = item.icon ? escapeHtml(item.icon) + ' ' : '';
+      return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + iconLabel + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)">−</button>' + '<span>' + stock + '개</span>' + '<button onclick="updateStock(' + index + ', 1)">＋</button>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="startEditItem(' + index + ')" class="admin-btn">수정</button>' + '<button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button>' + '</div>' + '</td>' + '</tr>';
     }).join('') + '</table>';
   }
   adminStockTable.innerHTML = stockHtml;
   labelTableCells(adminStockTable);
+  // 수정 모드에 들어가면 물품명 칸에 바로 커서를 둔다
+  if (adminEditIndex !== -1 && adminEditFocus) {
+    adminEditFocus = false;
+    var editNameEl = document.getElementById('editName');
+    if (editNameEl) {
+      editNameEl.focus();
+      editNameEl.select();
+    }
+  }
+
 
 
   // 드래그 앤 드롭 이벤트 설정
@@ -3198,6 +3214,102 @@ addItemBtn.addEventListener("click", function () {
 });
 
 // 재고 수정 함수 (전역 함수로 만들기 위해 window 객체에 할당)
+// ── 재고 표 인라인 수정 ─────────────────────────────────────
+window.startEditItem = function (index) {
+  if (index < 0 || index >= items.length) return;
+  adminEditIndex = index;
+  adminEditFocus = true;
+  renderAdminData();
+};
+
+window.cancelEditItem = function () {
+  adminEditIndex = -1;
+  renderAdminData();
+};
+
+window.saveEditItem = function (index) {
+  if (index < 0 || index >= items.length) return;
+  var item = items[index];
+  var clean = function clean(v) {
+    return String(v || '').trim().replace(/[<>"'&]/g, '');
+  };
+  var nameEl = document.getElementById('editName');
+  var typeEl = document.getElementById('editType');
+  var stockEl = document.getElementById('editStock');
+  var noticeEl = document.getElementById('editNotice');
+  var iconEl = document.getElementById('editIcon');
+  if (!nameEl || !typeEl || !stockEl || !noticeEl) return;
+
+  var newName = clean(nameEl.value);
+  var newType = typeEl.value;
+  var newStock = Math.max(0, Math.min(9999, parseInt(stockEl.value, 10) || 0));
+  var newNotice = clean(noticeEl.value);
+  var newIcon = iconEl ? clean(iconEl.value) : item.icon || '';
+
+  if (!newName) {
+    showConfirm({ icon: '⚠️', title: '알림', message: '물품명을 입력해주세요.', autoClose: 2000 });
+    return;
+  }
+  var duplicated = items.some(function (it, i) {
+    return i !== index && it.name === newName;
+  });
+  if (duplicated) {
+    showConfirm({ icon: '⚠️', title: '알림', message: '이미 존재하는 물품명입니다.', autoClose: 2000 });
+    return;
+  }
+
+  var oldName = item.name;
+  var oldType = item.type;
+  var oldStock = Number(item.stock) || 0;
+  var oldNotice = item.notice || '';
+  var oldIcon = item.icon || '';
+
+  // 바뀐 항목만 골라 변경 로그에 남긴다
+  var changes = [];
+  if (oldName !== newName) changes.push('물품명 ' + oldName + ' → ' + newName);
+  if (oldType !== newType) changes.push('구분 ' + oldType + ' → ' + newType);
+  if (oldStock !== newStock) changes.push('재고 ' + oldStock + '개 → ' + newStock + '개');
+  if (oldNotice !== newNotice) changes.push('주의사항 변경');
+  if (oldIcon !== newIcon) changes.push('아이콘 변경');
+  if (changes.length === 0) {
+    adminEditIndex = -1;
+    renderAdminData();
+    return;
+  }
+
+  items[index] = {
+    name: newName,
+    type: newType,
+    stock: newStock,
+    notice: newNotice,
+    icon: newIcon
+  };
+
+  // 이름을 바꾸면 대여 기록이 물품과 연결이 끊긴다 → 기록의 물품명도 함께 갱신
+  var renamedRecords = 0;
+  if (oldName !== newName && Array.isArray(borrowedRecords)) {
+    borrowedRecords.forEach(function (r) {
+      if (r && r.itemName === oldName) {
+        r.itemName = newName;
+        renamedRecords++;
+      }
+    });
+  }
+
+  saveData(); // items + borrowedRecords 를 함께 저장 (이름 변경이 기록에도 반영돼야 함)
+  addChangeLog('물품 수정', newName + ': ' + changes.join(', ') + (renamedRecords > 0 ? ' (대여 기록 ' + renamedRecords + '건 함께 수정)' : ''));
+
+  adminEditIndex = -1;
+  renderAdminData();
+  renderItems();
+  showConfirm({
+    icon: '✅',
+    title: '수정 완료',
+    message: newName + ' 정보가 수정되었습니다.',
+    autoClose: 2000
+  });
+};
+
 window.updateStock = function (index, change) {
   if (index < 0 || index >= items.length) return;
   var item = items[index];
@@ -3324,6 +3436,7 @@ window.forceReturn = /*#__PURE__*/function () {
 
 // 물품 순서 변경 함수 (드래그 앤 드롭용)
 window.moveItemTo = function (fromIndex, toIndex) {
+  adminEditIndex = -1; // 순서가 바뀌면 수정 중이던 행 인덱스가 어긋난다
   if (fromIndex < 0 || fromIndex >= items.length) return;
   if (toIndex < 0 || toIndex >= items.length) return;
   if (fromIndex === toIndex) return;
@@ -3374,6 +3487,7 @@ window.deleteItem = /*#__PURE__*/function () {
           return _context22.a(2);
         case 2:
           items.splice(index, 1);
+          adminEditIndex = -1; // 삭제로 인덱스가 밀리므로 수정 모드 해제
           saveData();
           addChangeLog("물품 삭제", "".concat(item.name, " \uC0AD\uC81C\uB428"));
           renderAdminData();
