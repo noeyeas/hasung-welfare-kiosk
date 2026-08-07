@@ -1460,10 +1460,10 @@ select {
     align-items: start;
 }
 body.numpad-open .user-layout {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) 420px;
 }
 body.hanpad-open .user-layout {
-    grid-template-columns: minmax(0, 1fr) 520px;
+    grid-template-columns: minmax(0, 1fr) 600px;
 }
 
 /* 화면에 고정하지 않고 흐름 안에 둔다 — 입력칸이나 제출 버튼을 가리지 않는다. */
@@ -1507,14 +1507,14 @@ body.hanpad-open .user-layout {
     min-width: 0;
     white-space: nowrap;
     font-family: inherit;
-    font-size: 1.25rem;
+    font-size: 1.45rem;
     font-weight: 600;
     color: var(--text);
     background: var(--surface-3);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     /* 터치 오입력을 줄이기 위한 충분한 타깃 크기 */
-    min-height: var(--touch);
+    min-height: 62px;
     cursor: pointer;
     user-select: none;
 }
@@ -1561,13 +1561,13 @@ body.hanpad-open .user-layout {
     min-width: 0;
     white-space: nowrap;
     font-family: inherit;
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: 600;
     color: var(--text);
     background: var(--surface-3);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    min-height: var(--touch);
+    min-height: 60px;
     padding: 0 2px;
     cursor: pointer;
     user-select: none;
@@ -1637,27 +1637,27 @@ body.hanpad-open .user-layout {
    키패드를 상시 표시하면서 세로 여유가 줄었으므로 간격을 죄어 한 화면에 담는다. */
 @media (max-height: 820px) {
     #step-user {
-        padding-top: 16px;
+        padding-top: 8px;
     }
     .step-bar {
         margin-bottom: 8px;
     }
     .step-head {
-        margin-bottom: 14px;
+        margin-bottom: 8px;
     }
     .step-head h1 {
-        font-size: 1.5rem;
+        font-size: 1.35rem;
         margin-bottom: 4px;
     }
     .step-head p {
         font-size: 0.72rem;
     }
     #step-user form {
-        gap: 10px;
+        gap: 6px;
     }
     #step-user form input,
     #step-user form select {
-        padding: 10px 14px;
+        padding: 8px 14px;
     }
     .user-layout {
         gap: 16px;
@@ -1671,7 +1671,7 @@ body.hanpad-open .user-layout {
     }
     .numpad-key,
     .hanpad-key {
-        min-height: 44px;
+        min-height: 48px;
     }
 }
 
