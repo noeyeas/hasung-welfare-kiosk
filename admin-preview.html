@@ -110,6 +110,67 @@ tbody td strong{color:var(--text)}
 .alert{display:flex;gap:10px;align-items:center;padding:12px 16px;border-radius:var(--r-md);border:1px solid rgba(255,122,122,.35);background:var(--danger-soft);margin-top:16px}
 .alert b{color:var(--danger)}
 .hint{font-size:.7rem;color:var(--text-3);padding:10px 16px}
+
+/* ── 패드 (≤1200px): 사이드바 → 상단 아이콘 레일, 2단 → 1단 ── */
+@media (max-width:1200px){
+  body{
+    font-size:16px; height:auto; min-height:100vh; overflow:auto;
+    display:flex; flex-direction:column;
+  }
+  .brand{border-right:0;padding:0 16px;height:58px;flex:0 0 auto}
+  .topbar{flex-wrap:wrap;height:auto;padding:10px 16px;gap:8px;position:sticky;top:0;z-index:20;background:var(--bg)}
+  .topbar .pill{order:3;flex:1 1 100%}
+  nav{
+    flex-direction:row; overflow-x:auto; border-right:0; border-bottom:1px solid var(--line-soft);
+    padding:10px 12px; gap:8px; position:sticky; top:60px; z-index:19; background:var(--bg);
+    scrollbar-width:none;
+  }
+  nav::-webkit-scrollbar{display:none}
+  .nav-cap{display:none}
+  .nav-item{flex:0 0 auto;min-height:48px;padding:0 16px;white-space:nowrap;font-size:.88rem}
+  .nav-foot{margin:0;padding:0;border-top:0;display:flex;gap:8px}
+  main{padding:14px 12px 24px}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi-value{font-size:1.7rem}
+  .grid2,.grid2[style]{grid-template-columns:1fr !important}
+  .scroll{max-height:none}
+  /* 터치 타겟 확보 */
+  .btn{min-height:48px;padding:0 18px;font-size:.85rem}
+  .btn.sm{min-height:44px;padding:0 14px;font-size:.8rem}
+  .chip{min-height:44px;padding:0 16px;font-size:.8rem}
+  .search{min-height:48px;font-size:.88rem}
+  .stepper button{width:40px;height:40px;font-size:1.1rem}
+  .stepper span{min-width:40px;font-size:.95rem}
+}
+
+/* ── 작은 패드 / 세로 (≤820px): 표 → 카드 리스트 ── */
+@media (max-width:820px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{padding:12px 14px}
+  table thead{display:none}
+  table,tbody,tbody tr,tbody td{display:block;width:100%}
+  tbody tr{
+    border:1px solid var(--line); border-radius:var(--r-md);
+    background:var(--surface-2); margin:10px 14px; padding:4px 0;
+  }
+  tbody td{
+    border-bottom:0; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:9px 14px; text-align:left !important;
+  }
+  tbody td::before{
+    content:attr(data-th); color:var(--text-3); font-size:.72rem;
+    font-weight:700; flex:0 0 auto;
+  }
+  tbody td:first-child{
+    border-bottom:1px solid var(--line-soft); padding-bottom:11px;
+  }
+  tbody td:first-child::before{display:none}
+  tbody td .bar{width:110px;margin-top:0}
+  .toolrow{gap:8px}
+  .search{flex:1 1 100%}
+  .alert{flex-wrap:wrap}
+  .alert .btn{flex:1 1 100%}
+}
 </style>
 </head>
 <body>
@@ -198,52 +259,52 @@ tbody td strong{color:var(--text)}
           <tbody>
             <tr>
               <td><strong>🌂 우산</strong><div style="font-size:.68rem;color:var(--text-3)">말려서 반납</div></td>
-              <td><span class="tag mute">대여</span></td>
-              <td>
+              <td data-th="구분"><span class="tag mute">대여</span></td>
+              <td data-th="재고">
                 <div class="stepper"><button>−</button><span>1</span><button>＋</button></div>
                 <div class="bar"><i style="width:8%;background:var(--danger)"></i></div>
               </td>
-              <td><span class="tag bad">부족</span></td>
+              <td data-th="상태"><span class="tag bad">부족</span></td>
               <td style="text-align:right"><button class="btn sm ghost">⋯</button></td>
             </tr>
             <tr>
               <td><strong>🔌 충전기 C타입</strong></td>
-              <td><span class="tag mute">대여</span></td>
-              <td>
+              <td data-th="구분"><span class="tag mute">대여</span></td>
+              <td data-th="재고">
                 <div class="stepper"><button>−</button><span>0</span><button>＋</button></div>
                 <div class="bar"><i style="width:2%;background:var(--danger)"></i></div>
               </td>
-              <td><span class="tag bad">품절</span></td>
+              <td data-th="상태"><span class="tag bad">품절</span></td>
               <td style="text-align:right"><button class="btn sm ghost">⋯</button></td>
             </tr>
             <tr>
               <td><strong>🔋 보조배터리</strong></td>
-              <td><span class="tag mute">대여</span></td>
-              <td>
+              <td data-th="구분"><span class="tag mute">대여</span></td>
+              <td data-th="재고">
                 <div class="stepper"><button>−</button><span>7</span><button>＋</button></div>
                 <div class="bar"><i style="width:58%;background:var(--amber)"></i></div>
               </td>
-              <td><span class="tag warn">보통</span></td>
+              <td data-th="상태"><span class="tag warn">보통</span></td>
               <td style="text-align:right"><button class="btn sm ghost">⋯</button></td>
             </tr>
             <tr>
               <td><strong>🩹 반창고</strong></td>
-              <td><span class="tag mute">소모품</span></td>
-              <td>
+              <td data-th="구분"><span class="tag mute">소모품</span></td>
+              <td data-th="재고">
                 <div class="stepper"><button>−</button><span>42</span><button>＋</button></div>
                 <div class="bar"><i style="width:88%;background:var(--success)"></i></div>
               </td>
-              <td><span class="tag ok">충분</span></td>
+              <td data-th="상태"><span class="tag ok">충분</span></td>
               <td style="text-align:right"><button class="btn sm ghost">⋯</button></td>
             </tr>
             <tr>
               <td><strong>✏️ 볼펜</strong></td>
-              <td><span class="tag mute">소모품</span></td>
-              <td>
+              <td data-th="구분"><span class="tag mute">소모품</span></td>
+              <td data-th="재고">
                 <div class="stepper"><button>−</button><span>25</span><button>＋</button></div>
                 <div class="bar"><i style="width:72%;background:var(--success)"></i></div>
               </td>
-              <td><span class="tag ok">충분</span></td>
+              <td data-th="상태"><span class="tag ok">충분</span></td>
               <td style="text-align:right"><button class="btn sm ghost">⋯</button></td>
             </tr>
           </tbody>
@@ -269,26 +330,26 @@ tbody td strong{color:var(--text)}
           <tbody>
             <tr>
               <td><strong>김하늘</strong><div style="font-size:.68rem;color:var(--text-3)">20301 · 010-1234-••••</div></td>
-              <td>🌂 우산</td>
-              <td><span class="tag bad">4일 연체</span></td>
+              <td data-th="물품">🌂 우산</td>
+              <td data-th="기한"><span class="tag bad">4일 연체</span></td>
               <td style="text-align:right"><button class="btn sm">반납</button></td>
             </tr>
             <tr>
               <td><strong>이준서</strong><div style="font-size:.68rem;color:var(--text-3)">10214 · 010-2222-••••</div></td>
-              <td>🔋 보조배터리</td>
-              <td><span class="tag bad">1일 연체</span></td>
+              <td data-th="물품">🔋 보조배터리</td>
+              <td data-th="기한"><span class="tag bad">1일 연체</span></td>
               <td style="text-align:right"><button class="btn sm">반납</button></td>
             </tr>
             <tr>
               <td><strong>박서연</strong><div style="font-size:.68rem;color:var(--text-3)">20117</div></td>
-              <td>🌂 우산</td>
-              <td><span class="tag warn">오늘 18:00</span></td>
+              <td data-th="물품">🌂 우산</td>
+              <td data-th="기한"><span class="tag warn">오늘 18:00</span></td>
               <td style="text-align:right"><button class="btn sm">반납</button></td>
             </tr>
             <tr>
               <td><strong>최민호</strong><div style="font-size:.68rem;color:var(--text-3)">30402</div></td>
-              <td>🔌 충전기</td>
-              <td><span class="tag mute">내일 18:00</span></td>
+              <td data-th="물품">🔌 충전기</td>
+              <td data-th="기한"><span class="tag mute">내일 18:00</span></td>
               <td style="text-align:right"><button class="btn sm">반납</button></td>
             </tr>
           </tbody>
