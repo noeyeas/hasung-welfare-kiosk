@@ -190,14 +190,23 @@ body::before {
 /* ============================================================
    진행 단계 표시
    ============================================================ */
+/* 상단 줄 — 왼쪽 뒤로 버튼, 오른쪽 진행 단계 */
+.step-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-bottom: 22px;
+}
+.step-bar.hidden {
+    display: none !important;
+}
 .step-indicator {
     display: flex;
     align-items: center;
-    /* 제목·폼이 왼쪽 선에 맞으므로 단계 표시는 오른쪽으로 보낸다 */
-    justify-content: flex-end;
     gap: 10px;
     flex-shrink: 0;
-    margin-bottom: 22px;
 }
 .step-dot {
     display: flex;
@@ -286,9 +295,6 @@ p {
     margin: 0 0 26px;
     max-width: 640px;
     width: 100%;
-}
-.step-head .ghost-btn {
-    margin-bottom: 18px;
 }
 .step-head h1 {
     margin-bottom: 8px;
@@ -1625,9 +1631,6 @@ body.hanpad-open .user-layout {
 @media (max-height: 820px) {
     .step-head {
         margin-bottom: 14px;
-    }
-    .step-head .ghost-btn {
-        margin-bottom: 10px;
     }
     .step-head h1 {
         font-size: 1.5rem;

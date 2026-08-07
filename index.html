@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=88">
+    <link rel="stylesheet" href="css/styles.css?v=89">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -42,11 +42,14 @@
 
     <section class="kiosk">
 
-        <!-- 진행 단계 -->
-        <div id="stepIndicator" class="step-indicator hidden">
-            <div class="step-dot active" data-step="user"><span class="step-num">1</span>정보 입력</div>
-            <div class="step-line"></div>
-            <div class="step-dot" data-step="items"><span class="step-num">2</span><span id="stepItemsLabel">물품 선택</span></div>
+        <!-- 상단 줄: 왼쪽 뒤로 버튼 / 오른쪽 진행 단계 -->
+        <div id="stepBar" class="step-bar hidden">
+            <button type="button" id="backToHome" class="ghost-btn">← 뒤로</button>
+            <div id="stepIndicator" class="step-indicator">
+                <div class="step-dot active" data-step="user"><span class="step-num">1</span>정보 입력</div>
+                <div class="step-line"></div>
+                <div class="step-dot" data-step="items"><span class="step-num">2</span><span id="stepItemsLabel">물품 선택</span></div>
+            </div>
         </div>
 
         <!-- 홈 화면 -->
@@ -191,7 +194,6 @@
 
         <section id="step-user" class="hidden">
             <div class="step-head">
-                <button type="button" id="backToHome" class="ghost-btn">← 뒤로</button>
                 <h1 id="userStepTitle">대여자 정보를 입력해 주세요</h1>
                 <p id="userStepSub">이름 · 학번 · 연락처만 입력하면 바로 대여 · 다음 날 18시까지 반납 (금·토 대여는 월요일)</p>
             </div>
@@ -387,6 +389,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=95"></script>
+    <script src="js/script.js?v=96"></script>
 </body>
 </html>

@@ -1249,11 +1249,15 @@ var renderHomeStock = function renderHomeStock() {
 // 진행 단계 표시 갱신 (1 정보 입력 → 2 물품 선택)
 var stepIndicator = document.getElementById("stepIndicator");
 var stepItemsLabel = document.getElementById("stepItemsLabel");
+var stepBar = document.getElementById("stepBar");
 var updateStepIndicator = function updateStepIndicator(step) {
   if (!stepIndicator) return;
   // 정보 입력·물품 선택 단계에서만 노출 (홈·관리자 화면에서는 숨김)
   var inFlow = step === "user" || step === "items";
-  stepIndicator.classList.toggle("hidden", !inFlow);
+  if (stepBar) stepBar.classList.toggle("hidden", !inFlow);
+  // 물품 선택 화면에는 툴바에 자체 '뒤로' 가 있으므로 여기 버튼은 감춘다
+  var backBtn = document.getElementById("backToHome");
+  if (backBtn) backBtn.style.visibility = step === "user" ? "" : "hidden";
   if (!inFlow) return;
   if (stepItemsLabel) {
     stepItemsLabel.textContent = flowMode === 'return' ? '반납할 물품' : '물품 선택';
