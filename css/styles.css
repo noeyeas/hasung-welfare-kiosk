@@ -505,8 +505,17 @@ select {
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    /* 내용이 컨테이너보다 길어지면(예: 키패드가 열렸을 때) 일반 center 는
+       위쪽으로 넘친 부분을 스크롤로 닿을 수 없게 만들어 잘라먹는다.
+       safe 를 붙이면 그 경우 자동으로 위 정렬로 떨어진다.
+       두 줄로 쓴 이유는 safe 를 모르는 브라우저가 앞 줄을 쓰게 하기 위함. */
     justify-content: center;
+    justify-content: safe center;
     overflow-y: auto;
+}
+/* 안내 문구가 길어 줄바꿈될 때 가로로 넘치지 않도록 */
+.step-head p {
+    overflow-wrap: break-word;
 }
 #step-user form {
     display: flex;
