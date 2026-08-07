@@ -331,12 +331,38 @@ tr.is-editing td { border-bottom-color: var(--primary-line); }
     cursor: pointer;
 }
 .admin-stepper button:hover { background: var(--primary-soft); color: #cdd4ff; }
+.admin-stepper button:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+.admin-stepper button:disabled:hover { background: transparent; color: var(--text-2); }
 .admin-stepper span {
-    min-width: 46px;
+    min-width: 62px;
     text-align: center;
     font-size: 0.8rem;
     font-weight: 800;
     color: var(--text);
+}
+/* 현재 재고 옆의 "/최대" 표기 */
+.admin-stepper span i {
+    font-style: normal;
+    font-weight: 600;
+    font-size: 0.72rem;
+    color: var(--text-3);
+}
+
+/* 수정 모드의 최대 재고 입력 */
+.admin-edit-stock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+}
+.admin-edit-stock .admin-input { max-width: 110px; text-align: center; }
+.admin-edit-hint {
+    font-size: 0.6rem;
+    color: var(--text-3);
+    white-space: nowrap;
 }
 
 /* ── 최근 활동 피드 ── */

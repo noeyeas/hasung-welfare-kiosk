@@ -66,6 +66,8 @@ function verifyAdminAuth(params) {
 }
 
 // 대여 시트 헤더 (id 컬럼 포함 - 로그/정렬용, 하위호환: 기존 행은 id 공란)
+// items 시트 컬럼. 여기에 없는 필드는 arrayToSheet 가 버리므로 반드시 함께 갱신할 것
+var ITEM_HEADERS = ['name', 'type', 'stock', 'maxStock', 'notice', 'icon', 'image'];
 var BORROWED_HEADERS = ['studentId', 'name', 'phone', 'itemName', 'dueLabel', 'dueDate', 'borrowedAt', 'id'];
 
 // 대여 중복 판정 키: (studentId, itemName) — 클라/서버 동일 규칙 (borrowedAt 미포함)
@@ -301,7 +303,7 @@ function doPost(e) {
       } else if (!Array.isArray(params.data) || params.data.length > 500) {
         result = { success: false, error: 'Invalid items payload' };
       } else {
-        arrayToSheet(getSheet('items'), params.data, ['name', 'type', 'stock', 'notice', 'icon', 'image']);
+        arrayToSheet(getSheet('items'), params.data, ITEM_HEADERS);
         result = { success: true };
       }
 
@@ -366,10 +368,13 @@ function doPost(e) {
       var newStock = params.stock;
       items.forEach(function(item) {
         if (item.name === itemName) {
-          item.stock = Math.max(0, Number(newStock) || 0); // 음수 재고 방지
+          var stock = Math.max(0, Number(newStock) || 0); // 음수 재고 방지
+          var max = Number(item.maxStock) || 0;
+          if (max > 0) stock = Math.min(stock, max); // 최대 재고 초과 방지
+          item.stock = stock;
         }
       });
-      arrayToSheet(sheet, items, ['name', 'type', 'stock', 'notice', 'icon', 'image']);
+      arrayToSheet(sheet, items, ITEM_HEADERS);
       result = { success: true };
 
     } else if (action === 'addChangeLog') {
@@ -423,7 +428,7 @@ function initializeData() {
       { name: '핫팩', type: '소모품', stock: 20, notice: '개봉 후 재활용 불가, 즉시 폐기', icon: '🔥', image: '' },
       { name: '마스크', type: '소모품', stock: 50, notice: '1인 1개 제한', icon: '😷', image: '' }
     ];
-    arrayToSheet(itemsSheet, defaultItems, ['name', 'type', 'stock', 'notice', 'icon', 'image']);
+    arrayToSheet(itemsSheet, defaultItems, ITEM_HEADERS);
   }
 
   // borrowed 시트 헤더 생성

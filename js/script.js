@@ -889,6 +889,26 @@ var adminPanelName = 'dash';
 var adminStockFilter = 'all';
 var adminEditIndex = -1;   // 재고 표에서 인라인 수정 중인 행 (없으면 -1)
 var adminEditFocus = false;
+
+// 최대 재고(총 보유 수량). 예전에 등록된 물품에는 값이 없으므로 현재 재고로 대체한다.
+function getMaxStock(item) {
+  if (!item) return 0;
+  var max = Number(item.maxStock) || 0;
+  if (max > 0) return max;
+  return Number(item.stock) || 0;
+}
+
+// 재고 상태: 최대 재고 대비 비율로 판단한다
+function stockState(item) {
+  var stock = Number(item.stock) || 0;
+  var max = getMaxStock(item);
+  if (stock === 0) return { cls: 'is-bad', label: '품절' };
+  if (max <= 0) return { cls: 'is-mute', label: '-' };
+  var ratio = stock / max;
+  if (ratio <= 0.2) return { cls: 'is-bad', label: '부족' };
+  if (ratio <= 0.5) return { cls: 'is-warn', label: '보통' };
+  return { cls: 'is-ok', label: '충분' };
+}
 var adminStockQuery = '';
 var adminLendQuery = '';
 
@@ -1189,14 +1209,14 @@ var renderAdminData = function renderAdminData() {
 
   // 재고 부족 경고 배너
   var lowItems = items.filter(function (it) {
-    return (Number(it.stock) || 0) <= 1;
+    return stockState(it).cls === 'is-bad';
   });
   var adminAlert = document.getElementById('adminAlert');
   var adminAlertText = document.getElementById('adminAlertText');
   if (adminAlert && adminAlertText) {
     if (lowItems.length > 0) {
       adminAlertText.innerHTML = '<b>재고 부족 ' + lowItems.length + '건</b> · ' + lowItems.map(function (it) {
-        return escapeHtml(it.name) + '(' + (Number(it.stock) || 0) + '개)';
+        return escapeHtml(it.name) + '(' + (Number(it.stock) || 0) + '/' + getMaxStock(it) + ')';
       }).join(', ') + ' — 보충이 필요합니다.';
       adminAlert.classList.remove('hidden');
     } else {
@@ -1237,7 +1257,7 @@ var renderAdminData = function renderAdminData() {
     var it = row.item;
     var stock = Number(it.stock) || 0;
     if (row.index === adminEditIndex) return true; // 수정 중인 행은 필터와 무관하게 계속 보인다
-    if (adminStockFilter === 'low' && stock > 1) return false;
+    if (adminStockFilter === 'low' && ['is-bad'].indexOf(stockState(it).cls) === -1) return false;
     if (adminStockFilter !== 'all' && adminStockFilter !== 'low' && it.type !== adminStockFilter) return false;
     if (adminStockQuery && String(it.name || '').toLowerCase().indexOf(adminStockQuery) === -1) return false;
     return true;
@@ -1253,13 +1273,15 @@ var renderAdminData = function renderAdminData() {
 
       // ── 수정 모드 행 ──
       if (index === adminEditIndex) {
-        return '<tr class="is-editing" data-index="' + index + '">' + '<td data-th="순서" style="text-align: center;">✏️</td>' + '<td data-th="물품명">' + '<div class="admin-edit-name">' + '<input id="editIcon" class="admin-input is-icon" type="text" value="' + escapeHtml(item.icon || '') + '" placeholder="🌂" maxlength="4">' + '<input id="editName" class="admin-input" type="text" value="' + escapeHtml(item.name || '') + '" placeholder="물품명">' + '</div>' + '</td>' + '<td data-th="구분">' + '<select id="editType" class="admin-input">' + '<option value="대여"' + (item.type === '대여' ? ' selected' : '') + '>대여</option>' + '<option value="소모품"' + (item.type === '소모품' ? ' selected' : '') + '>소모품</option>' + '</select>' + '</td>' + '<td data-th="재고"><input id="editStock" class="admin-input" type="number" min="0" max="9999" value="' + stock + '"></td>' + '<td data-th="상태"><span class="admin-tag is-mute">수정 중</span></td>' + '<td data-th="주의사항"><input id="editNotice" class="admin-input" type="text" value="' + escapeHtml(item.notice || '') + '" placeholder="주의사항"></td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="saveEditItem(' + index + ')" class="admin-btn is-primary">저장</button>' + '<button onclick="cancelEditItem()" class="admin-btn">취소</button>' + '</div>' + '</td>' + '</tr>';
+        return '<tr class="is-editing" data-index="' + index + '">' + '<td data-th="순서" style="text-align: center;">✏️</td>' + '<td data-th="물품명">' + '<div class="admin-edit-name">' + '<input id="editIcon" class="admin-input is-icon" type="text" value="' + escapeHtml(item.icon || '') + '" placeholder="🌂" maxlength="4">' + '<input id="editName" class="admin-input" type="text" value="' + escapeHtml(item.name || '') + '" placeholder="물품명">' + '</div>' + '</td>' + '<td data-th="구분">' + '<select id="editType" class="admin-input">' + '<option value="대여"' + (item.type === '대여' ? ' selected' : '') + '>대여</option>' + '<option value="소모품"' + (item.type === '소모품' ? ' selected' : '') + '>소모품</option>' + '</select>' + '</td>' + '<td data-th="재고">' + '<div class="admin-edit-stock">' + '<input id="editMaxStock" class="admin-input" type="number" min="0" max="9999" value="' + getMaxStock(item) + '">' + '<span class="admin-edit-hint">최대 재고 · 현재 ' + stock + '개</span>' + '</div>' + '</td>' + '<td data-th="상태"><span class="admin-tag is-mute">수정 중</span></td>' + '<td data-th="주의사항"><input id="editNotice" class="admin-input" type="text" value="' + escapeHtml(item.notice || '') + '" placeholder="주의사항"></td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="saveEditItem(' + index + ')" class="admin-btn is-primary">저장</button>' + '<button onclick="cancelEditItem()" class="admin-btn">취소</button>' + '</div>' + '</td>' + '</tr>';
       }
 
       // ── 일반 행 ──
-      var tag = stock === 0 ? '<span class="admin-tag is-bad">품절</span>' : stock <= 1 ? '<span class="admin-tag is-bad">부족</span>' : stock <= 4 ? '<span class="admin-tag is-warn">보통</span>' : '<span class="admin-tag is-ok">충분</span>';
+      var max = getMaxStock(item);
+      var st = stockState(item);
+      var tag = '<span class="admin-tag ' + st.cls + '">' + st.label + '</span>';
       var iconLabel = item.icon ? escapeHtml(item.icon) + ' ' : '';
-      return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + iconLabel + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)">−</button>' + '<span>' + stock + '개</span>' + '<button onclick="updateStock(' + index + ', 1)">＋</button>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="startEditItem(' + index + ')" class="admin-btn">수정</button>' + '<button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button>' + '</div>' + '</td>' + '</tr>';
+      return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + iconLabel + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)"' + (stock <= 0 ? ' disabled' : '') + '>−</button>' + '<span>' + stock + '<i>/' + max + '</i></span>' + '<button onclick="updateStock(' + index + ', 1)"' + (max > 0 && stock >= max ? ' disabled' : '') + '>＋</button>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리">' + '<div class="admin-row-actions">' + '<button onclick="startEditItem(' + index + ')" class="admin-btn">수정</button>' + '<button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button>' + '</div>' + '</td>' + '</tr>';
     }).join('') + '</table>';
   }
   adminStockTable.innerHTML = stockHtml;
@@ -2688,6 +2710,7 @@ addItemBtn.addEventListener("click", function () {
     name: name,
     type: type,
     stock: stock,
+    maxStock: stock, // 최대 재고는 일단 초기 재고와 동일 — 이후 '수정'에서 조정한다
     notice: notice || "",
     icon: icon
   });
@@ -2732,14 +2755,17 @@ window.saveEditItem = function (index) {
   };
   var nameEl = document.getElementById('editName');
   var typeEl = document.getElementById('editType');
-  var stockEl = document.getElementById('editStock');
+  var maxStockEl = document.getElementById('editMaxStock');
   var noticeEl = document.getElementById('editNotice');
   var iconEl = document.getElementById('editIcon');
-  if (!nameEl || !typeEl || !stockEl || !noticeEl) return;
+  if (!nameEl || !typeEl || !maxStockEl || !noticeEl) return;
 
   var newName = clean(nameEl.value);
   var newType = typeEl.value;
-  var newStock = Math.max(0, Math.min(9999, parseInt(stockEl.value, 10) || 0));
+  var newMaxStock = Math.max(0, Math.min(9999, parseInt(maxStockEl.value, 10) || 0));
+  // 현재 재고는 수정 폼에서 건드리지 않는다. 다만 최대치를 넘고 있으면 함께 내린다.
+  var newStock = Number(item.stock) || 0;
+  if (newMaxStock > 0 && newStock > newMaxStock) newStock = newMaxStock;
   var newNotice = clean(noticeEl.value);
   var newIcon = iconEl ? clean(iconEl.value) : item.icon || '';
 
@@ -2758,6 +2784,7 @@ window.saveEditItem = function (index) {
   var oldName = item.name;
   var oldType = item.type;
   var oldStock = Number(item.stock) || 0;
+  var oldMaxStock = getMaxStock(item);
   var oldNotice = item.notice || '';
   var oldIcon = item.icon || '';
 
@@ -2765,7 +2792,8 @@ window.saveEditItem = function (index) {
   var changes = [];
   if (oldName !== newName) changes.push('물품명 ' + oldName + ' → ' + newName);
   if (oldType !== newType) changes.push('구분 ' + oldType + ' → ' + newType);
-  if (oldStock !== newStock) changes.push('재고 ' + oldStock + '개 → ' + newStock + '개');
+  if (oldMaxStock !== newMaxStock) changes.push('최대 재고 ' + oldMaxStock + '개 → ' + newMaxStock + '개');
+  if (oldStock !== newStock) changes.push('현재 재고 ' + oldStock + '개 → ' + newStock + '개 (최대치에 맞춰 내림)');
   if (oldNotice !== newNotice) changes.push('주의사항 변경');
   if (oldIcon !== newIcon) changes.push('아이콘 변경');
   if (changes.length === 0) {
@@ -2778,6 +2806,7 @@ window.saveEditItem = function (index) {
     name: newName,
     type: newType,
     stock: newStock,
+    maxStock: newMaxStock,
     notice: newNotice,
     icon: newIcon
   };
@@ -2811,8 +2840,12 @@ window.updateStock = function (index, change) {
   if (index < 0 || index >= items.length) return;
   var item = items[index];
   var oldStock = Number(item.stock) || 0;
-  items[index].stock = Math.max(0, oldStock + change);
-  var newStock = items[index].stock;
+  var max = getMaxStock(item);
+  var next = Math.max(0, oldStock + change);
+  if (max > 0) next = Math.min(next, max); // 최대 재고를 넘겨 올릴 수 없다
+  if (next === oldStock) return;
+  items[index].stock = next;
+  var newStock = next;
   saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
   // API 증분 동기화 (추적됨)
   apiPostSync({
