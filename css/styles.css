@@ -197,7 +197,7 @@ body::before {
     justify-content: space-between;
     gap: 12px;
     flex-shrink: 0;
-    margin-bottom: 22px;
+    margin-bottom: 12px;
 }
 .step-bar.hidden {
     display: none !important;
@@ -728,6 +728,9 @@ select {
     line-height: 1.6;
 }
 .item-card {
+    /* 기본 min-width: auto 면 버튼 등 내용 최소폭만큼 트랙을 밀어내
+       그리드가 가로로 넘치고 오른쪽 열이 잘린다 */
+    min-width: 0;
     padding: 20px;
     background: var(--surface-2);
     border-radius: var(--r-lg);
@@ -1629,6 +1632,9 @@ body.hanpad-open .user-layout {
 /* 화면이 낮으면(태블릿 가로 등) 정보 입력 화면이 넘쳐 스크롤이 생긴다.
    키패드를 상시 표시하면서 세로 여유가 줄었으므로 간격을 죄어 한 화면에 담는다. */
 @media (max-height: 820px) {
+    .step-bar {
+        margin-bottom: 8px;
+    }
     .step-head {
         margin-bottom: 14px;
     }

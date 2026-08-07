@@ -1317,6 +1317,13 @@ var showStep = function showStep(step) {
     }
   } else if (step === "items") {
     stepItems.classList.remove("hidden");
+    // 관리자 화면이 남긴 인라인 여백·폭을 원복한다.
+    // 남아 있으면 물품 그리드가 오른쪽으로 밀려 잘린다.
+    var _kioskItems = document.querySelector('.kiosk');
+    if (_kioskItems) {
+      _kioskItems.style.marginLeft = '';
+      _kioskItems.style.width = '';
+    }
     // 반납 흐름에서는 타입 필터 대신 안내 문구를 보여준다
     var filterRow = document.getElementById("filterRow");
     var itemsModeLabel = document.getElementById("itemsModeLabel");
