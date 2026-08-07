@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hasung-kiosk-v24';
+const CACHE_NAME = 'hasung-kiosk-v25';
 const urlsToCache = [
   './',
   './index.html',
@@ -95,16 +95,25 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() => {
         // 네트워크 실패 시 캐시에서 찾기
-        return caches.match(event.request)
+        //
+        // ignoreVary 가 반드시 필요하다. GitHub Pages 응답에는 'Vary: Accept-Encoding' 이
+        // 붙는데, 기본 동작에서는 요청의 Accept-Encoding 이 캐시 저장 당시와 다르면
+        // 저장된 응답이 있어도 매칭에 실패한다. 오프라인 상태에서 헤더가 달라지면
+        // 캐시가 멀쩡히 있는데도 아무것도 못 찾고 네트워크 오류 화면이 뜬다.
+        //
+        // ignoreSearch 는 '/hasung-welfare-kiosk/?mode=admin' 처럼 쿼리가 붙은
+        // 주소로 진입한 경우를 위한 것이다.
+        const matchOptions = { ignoreVary: true, ignoreSearch: true };
+
+        return caches.match(event.request, matchOptions)
           .then((response) => {
             if (response) {
               return response;
             }
             // 정확히 일치하는 캐시가 없을 때, 문서 요청이면 시작 페이지로 대체한다.
-            // '/hasung-welfare-kiosk/?mode=admin' 처럼 쿼리가 붙은 주소나
-            // 디렉터리 주소('./')로 들어온 경우를 모두 받아내기 위함이다.
             if (event.request.mode === 'navigate' || event.request.destination === 'document') {
-              return caches.match('./index.html').then((page) => page || caches.match('./'));
+              return caches.match('./index.html', matchOptions)
+                .then((page) => page || caches.match('./', matchOptions));
             }
             return undefined;
           });
