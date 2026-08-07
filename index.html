@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=74">
+    <link rel="stylesheet" href="css/styles.css?v=81">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -199,20 +199,24 @@
                 <h1 id="userStepTitle">대여자 정보를 입력해 주세요</h1>
                 <p id="userStepSub">이름 · 학번 · 연락처만 입력하면 바로 대여 · 다음 날 18시까지 반납 (금·토 대여는 월요일)</p>
             </div>
+            <!-- 넓은 화면에서는 왼쪽 폼 / 오른쪽 키패드 2단, 좁은 화면에서는 세로로 쌓인다 -->
+            <div class="user-layout">
             <form id="user-form" novalidate>
                 <div class="field">
                     <label for="name">이름</label>
-                    <input id="name" name="name" type="text" autocomplete="off" required autofocus>
+                    <input id="name" name="name" type="text" inputmode="none" autocomplete="off" required autofocus>
                     <div id="nameError" class="error" aria-live="polite"></div>
                 </div>
                 <div class="field">
                     <label for="studentId">학번 (10자리 숫자)</label>
-                    <input id="studentId" name="studentId" type="tel" inputmode="numeric" maxlength="10" autocomplete="off" required>
+                    <!-- inputmode="none": OS 가상 키보드를 띄우지 않고 화면 내 숫자 키패드(#numPad)를 쓴다.
+                         물리 키보드 입력은 그대로 동작한다. -->
+                    <input id="studentId" name="studentId" type="tel" inputmode="none" maxlength="10" autocomplete="off" required>
                     <div id="studentIdError" class="error" aria-live="polite"></div>
                 </div>
                 <div class="field">
                     <label for="phone">전화번호 ('-' 없이 11자리)</label>
-                    <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="off" required>
+                    <input id="phone" name="phone" type="tel" inputmode="none" maxlength="11" autocomplete="off" required>
                     <div id="phoneError" class="error" aria-live="polite"></div>
                 </div>
                 <div class="field">
@@ -224,10 +228,83 @@
                 </div>
                 <button class="btn-primary" type="submit" id="submitBtn">다음 단계 →</button>
             </form>
+
+        <!-- 숫자 키패드 — 학번·전화번호 칸을 누르면 폼 옆에 나타난다 -->
+        <div id="numPad" class="numpad hidden" role="group" aria-label="숫자 키패드">
+            <div class="numpad-head">
+                <span id="numPadLabel" class="numpad-label"></span>
+                <button type="button" id="numPadClose" class="numpad-close">닫기</button>
+            </div>
+            <div class="numpad-keys">
+                <button type="button" class="numpad-key" data-key="1">1</button>
+                <button type="button" class="numpad-key" data-key="2">2</button>
+                <button type="button" class="numpad-key" data-key="3">3</button>
+                <button type="button" class="numpad-key" data-key="4">4</button>
+                <button type="button" class="numpad-key" data-key="5">5</button>
+                <button type="button" class="numpad-key" data-key="6">6</button>
+                <button type="button" class="numpad-key" data-key="7">7</button>
+                <button type="button" class="numpad-key" data-key="8">8</button>
+                <button type="button" class="numpad-key" data-key="9">9</button>
+                <button type="button" class="numpad-key is-muted" data-key="clear">전체 지우기</button>
+                <button type="button" class="numpad-key" data-key="0">0</button>
+                <button type="button" class="numpad-key is-muted" data-key="back">← 지우기</button>
+            </div>
+        </div>
+
+        <!-- 한글 키패드 (두벌식) — 이름 칸을 누르면 나타난다 -->
+        <div id="hanPad" class="hanpad hidden" role="group" aria-label="한글 키패드">
+            <div class="numpad-head">
+                <span id="hanPadLabel" class="numpad-label">이름</span>
+                <button type="button" id="hanPadClose" class="numpad-close">닫기</button>
+            </div>
+            <div class="hanpad-rows">
+                <div class="hanpad-row">
+                    <button type="button" class="hanpad-key" data-jamo="ㅂ" data-shift="ㅃ">ㅂ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅈ" data-shift="ㅉ">ㅈ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄷ" data-shift="ㄸ">ㄷ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄱ" data-shift="ㄲ">ㄱ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅅ" data-shift="ㅆ">ㅅ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅛ">ㅛ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅕ">ㅕ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅑ">ㅑ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅐ" data-shift="ㅒ">ㅐ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅔ" data-shift="ㅖ">ㅔ</button>
+                </div>
+                <div class="hanpad-row">
+                    <button type="button" class="hanpad-key" data-jamo="ㅁ">ㅁ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄴ">ㄴ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅇ">ㅇ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㄹ">ㄹ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅎ">ㅎ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅗ">ㅗ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅓ">ㅓ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅏ">ㅏ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅣ">ㅣ</button>
+                </div>
+                <div class="hanpad-row">
+                    <button type="button" class="hanpad-key is-mod" id="hanShift">쌍자음</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅋ">ㅋ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅌ">ㅌ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅊ">ㅊ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅍ">ㅍ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅠ">ㅠ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅜ">ㅜ</button>
+                    <button type="button" class="hanpad-key" data-jamo="ㅡ">ㅡ</button>
+                    <button type="button" class="hanpad-key is-muted" data-han="back">← 지우기</button>
+                </div>
+                <div class="hanpad-row">
+                    <button type="button" class="hanpad-key is-muted is-wide" data-han="clear">전체 지우기</button>
+                    <button type="button" class="hanpad-key is-muted is-wide" data-han="space">공백</button>
+                </div>
+            </div>
+        </div>
+            </div>
         </section>
 
         <section id="step-items" class="hidden">
             <div class="items-toolbar">
+                <!-- 대여자 정보 — 떠 있는 카드 대신 툴바 안에 칩으로 둔다 -->
+                <div id="userChips" class="user-chips"></div>
                 <div class="filter-row" id="filterRow">
                     <button id="filterAll" class="filter-btn active" data-filter="all">전체</button>
                     <button id="filterBorrow" class="filter-btn" data-filter="borrow">대여 가능만</button>
@@ -263,11 +340,6 @@
                     <button id="confirmOk" class="btn-primary" style="flex: 1; font-size: 0.9rem;">확인</button>
                 </div>
             </div>
-        </div>
-
-        <!-- STEP2 사용자 정보 팝업 (왼쪽 상단) -->
-        <div id="userInfoPopup" class="user-info-popup hidden">
-            <div id="userInfoCard" class="user-info-card"></div>
         </div>
 
     </section>
@@ -315,6 +387,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=82"></script>
+    <script src="js/script.js?v=89"></script>
 </body>
 </html>

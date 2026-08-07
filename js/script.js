@@ -239,6 +239,7 @@ var showConfirm = function showConfirm(options) {
       title = _options.title,
       stock = _options.stock,
       message = _options.message,
+      messageHtml = _options.messageHtml,
       autoClose = _options.autoClose;
     if (confirmIcon) confirmIcon.textContent = icon || '📦';
     if (confirmTitle) confirmTitle.textContent = title || '';
@@ -250,7 +251,15 @@ var showConfirm = function showConfirm(options) {
         confirmStock.textContent = '';
       }
     }
-    if (confirmMessage) confirmMessage.textContent = message || '';
+    // messageHtml 은 강조 표시가 필요한 곳에서만 쓴다. 넘기는 쪽에서 반드시
+    // escapeHtml 로 감싼 값만 넣어야 한다. 그 외에는 textContent 로 안전하게 둔다.
+    if (confirmMessage) {
+      if (messageHtml) {
+        confirmMessage.innerHTML = messageHtml;
+      } else {
+        confirmMessage.textContent = message || '';
+      }
+    }
 
     // 버튼 영역 표시/숨기기
     var btnArea = confirmOk ? confirmOk.parentElement : null;
@@ -1173,6 +1182,9 @@ var items = [];
 var borrowedRecords = [];
 // 누적 대여·수령 횟수 (서버 stats 카운터에서 로드, 캐시 폴백) - 로그와 무관한 진짜 누적
 var statsTotalBorrow = loadFromLocalCache('kiosk_statsTotalBorrow');
+// 서버 응답을 기다리는 중인지. 기다리는 동안 캐시값을 보여주면 응답 도착 시
+// 숫자가 뛰어 보이므로 '—' 로 대신한다. 요청이 실패하면 다시 캐시값으로 돌아간다.
+var statsTotalBorrowLoading = false;
 
 // 데이터 저장 함수 (localStorage 캐시 + API 동기화)
 var saveData = /*#__PURE__*/function () {
@@ -1207,8 +1219,7 @@ var saveData = /*#__PURE__*/function () {
     return _ref14.apply(this, arguments);
   };
 }();
-var userInfoPopup = document.getElementById("userInfoPopup");
-var userInfoCard = document.getElementById("userInfoCard");
+var userChips = document.getElementById("userChips");
 var logBoard = document.getElementById("logBoard");
 var brandLogo = document.getElementById("brandLogo");
 
@@ -1260,7 +1271,12 @@ var updateStepIndicator = function updateStepIndicator(step) {
   });
 };
 
+// 현재 보고 있는 화면. 느린 초기화가 뒤늦게 끝나면서 사용자가 이동해 둔
+// 화면을 홈으로 되돌리는 일을 막는 데 쓴다.
+var currentStepName = null;
+
 var showStep = function showStep(step) {
+  currentStepName = step;
   updateStepIndicator(step);
   // 화면 전환 시 기존 자동 로그아웃 타이머 해제 (items 화면이면 아래에서 다시 무장)
   if (typeof clearAutoLogout === 'function') {
@@ -1273,9 +1289,12 @@ var showStep = function showStep(step) {
   stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
   stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
   stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
-  if (userInfoPopup) userInfoPopup.classList.add("hidden");
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
+  // 화면을 옮기면 숫자 키패드는 항상 닫는다.
+  // (initApp 이 이 파일 아래쪽 정의보다 먼저 showStep 을 부를 수 있어 typeof 로 방어)
+  if (typeof closeNumPad === "function") closeNumPad();
+  if (typeof closeHanPad === "function") closeHanPad();
   var mobileBorrowedPanelEl = document.getElementById("mobileBorrowedPanel");
   if (mobileBorrowedPanelEl) mobileBorrowedPanelEl.classList.add("hidden");
   if (brandLogo) brandLogo.classList.add("hidden");
@@ -1303,12 +1322,8 @@ var showStep = function showStep(step) {
     renderItems();
     if (logBoard) logBoard.classList.add("hidden");
     if (brandLogo) brandLogo.classList.remove("hidden");
-    if (userInfoPopup) {
-      userInfoPopup.classList.remove("hidden");
-      // 위치는 CSS(.user-info-popup)가 정한다 — 헤더 아래에서 시작
-      userInfoPopup.style.top = '';
-      userInfoPopup.style.left = '';
-    }
+    // 대여자 정보는 툴바 칩(#userChips)으로 보여준다.
+    // 떠 있던 카드(#userInfoPopup)는 화면이 좁을 때 물품 카드를 덮어서 더 이상 띄우지 않는다.
     // 자동 로그아웃 타이머 시작
     if (typeof resetAutoLogout === 'function') {
       resetAutoLogout();
@@ -1339,7 +1354,11 @@ var showStep = function showStep(step) {
     }
     // 관리자 모드 진입 시 API에서 최신 데이터 가져오기 (전체 PII 포함 → POST + 관리자 인증)
     // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
+    // 누적 카운터는 서버가 권위 값이다. 캐시값을 먼저 보여주면 응답이 온 순간
+    // 숫자가 뛰어 오작동처럼 보이므로, 응답을 기다리는 동안에는 '—' 로 둔다.
+    statsTotalBorrowLoading = true;
     apiPost({ action: 'getAllAdmin', adminPassword: adminAuthPassword }, function (err, response) {
+      statsTotalBorrowLoading = false;
       // req1: 응답 없음(err)·success=false·data 파손 시 로컬 메모리/캐시를 절대 덮어쓰지 않고 캐시로 렌더링만
       var ok = !err && response && response.success && response.data;
       // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
@@ -1469,7 +1488,7 @@ var renderAdminData = function renderAdminData() {
   var statTodayBorrow = document.getElementById('statTodayBorrow');
   var statTotalBorrowed = document.getElementById('statTotalBorrowed');
   var statOverdue = document.getElementById('statOverdue');
-  if (statTodayBorrow) statTodayBorrow.textContent = totalBorrowCount;
+  if (statTodayBorrow) statTodayBorrow.textContent = statsTotalBorrowLoading ? '—' : totalBorrowCount;
   if (statTotalBorrowed) statTotalBorrowed.textContent = totalBorrowed;
   if (statOverdue) statOverdue.textContent = overdueCount;
 
@@ -1808,7 +1827,9 @@ var renderItems = function renderItems() {
       // 반납 흐름: 목록 자체가 대여 중인 물품이므로 반납 버튼만 노출한다
       actionsHtml = '<button class="borrow" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
     } else if (item.type === "대여") {
-      actionsHtml = '<button class="borrow' + (outOfStock ? ' disabled' : '') + '" data-action="borrow" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '대여하기') + '</button>' + '<button class="secondary" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
+      // 대여 흐름에서는 대여 버튼만 둔다. 반납은 홈의 '반납하기'로 들어오는
+      // 별도 흐름이 담당하므로 여기 반납 버튼은 오히려 오조작을 부른다.
+      actionsHtml = '<button class="borrow' + (outOfStock ? ' disabled' : '') + '" data-action="borrow" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '대여하기') + '</button>';
     } else {
       actionsHtml = '<button class="consume' + (outOfStock ? ' disabled' : '') + '" data-action="consume" data-index="' + originalIndex + '"' + (outOfStock ? ' disabled title="재고가 없습니다"' : '') + '>' + (outOfStock ? '재고 없음' : '수령하기') + '</button>';
     }
@@ -1990,7 +2011,11 @@ var initApp = /*#__PURE__*/function () {
             console.error('localStorage fallback error:', e2);
           }
         case 5:
-          showStep("home");
+          // initApp 은 서버 응답을 기다리느라 수 초가 걸릴 수 있다. 그 사이 사용자가
+          // 이미 다른 화면으로 넘어갔다면 홈으로 되돌리지 않는다 (입력 중이던 내용 보호).
+          if (!currentStepName || currentStepName === "home") {
+            showStep("home");
+          }
         case 6:
           return _context15.a(2);
       }
@@ -2170,8 +2195,16 @@ form.addEventListener("submit", function (event) {
       '<li>물품 분실·파손 시 동일 제품으로 변상</li>' +
       '</ul>';
   }
-  if (userInfoCard) {
-    userInfoCard.innerHTML = userInfoHtml;
+  // 툴바 칩 — 물품 선택 화면에서 상시 보이는 요약.
+  // 상세 안내(벌금·변상 조건)는 완료 화면 요약(summaryBox)에 그대로 남는다.
+  if (userChips) {
+    var chipsHtml = '<span class="user-chip"><b>' + escapeHtml(name) + '</b> ' + escapeHtml(studentId) + '</span>';
+    if (flowMode === 'return') {
+      chipsHtml += '<span class="user-chip is-return">반납 진행 중</span>';
+    } else {
+      chipsHtml += '<span class="user-chip is-due">반납 ' + escapeHtml(currentDueInfo.label) + '</span>';
+    }
+    userChips.innerHTML = chipsHtml;
   }
   if (summaryBox) {
     summaryBox.innerHTML = userInfoHtml;
@@ -2185,7 +2218,7 @@ var debounceTime = 400; // 400ms
 
 itemGrid.addEventListener("click", /*#__PURE__*/function () {
   var _ref16 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(event) {
-    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
+    var _event$target$dataset, action, index, item, alreadyBorrowed, noticeMsg, noticeLines, _dueForNotice, dueInfo, borrowRecord, dueLabel, borrowedIndex, removedRecord;
     return _regenerator().w(function (_context16) {
       while (1) switch (_context16.n) {
         case 0:
@@ -2244,20 +2277,33 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
           showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
           return _context16.a(2);
         case 6:
-          // 주의사항 메시지 구성
-          noticeMsg = '';
+          // 주의사항 메시지 구성. 예전에는 떠 있는 정보 카드에 상시 표시했지만
+          // 화면을 가렸고, 정작 필요한 시점은 빌리는 순간이므로 이 확인 창으로 옮겼다.
+          _dueForNotice = currentDueInfo || getDueInfo();
+          noticeLines = [];
           if (item.notice && item.notice.trim()) {
-            noticeMsg = "\u26A0\uFE0F \uC8FC\uC758\uC0AC\uD56D: ".concat(item.notice);
+            noticeLines.push("⚠️ " + escapeHtml(item.notice));
           }
+          // 반납 기한은 가장 중요한 정보라 붉게 강조한다
+          noticeLines.push("📅 반납 기한: <span style=\"color: #ff7a7a; font-weight: 700;\">" + escapeHtml(_dueForNotice.label) + "</span>");
+          noticeLines.push("💸 기한 초과 시 1일당 2,000원 (주말 포함)");
+          if (_dueForNotice.isWeekendPenalty) {
+            noticeLines.push("주말에도 벌금이 부과됩니다.");
+          }
+          noticeLines.push("🔧 분실·파손 시 동일 제품으로 변상");
+          noticeMsg = noticeLines.join("<br>");
           _context16.n = 7;
           return showConfirm({
             icon: item.icon || '📦',
             title: "".concat(item.name, " \uB300\uC5EC"),
             stock: item.stock,
-            message: noticeMsg || '대여 후 기한 내 반납해주세요.',
-            autoClose: 3000
+            messageHtml: noticeMsg
           });
         case 7:
+          // 사용자가 취소를 누르면 대여를 진행하지 않는다
+          if (!_context16.v) {
+            return _context16.a(2);
+          }
           dueInfo = currentDueInfo || getDueInfo();
           borrowRecord = {
             studentId: currentUser.studentId,
@@ -3200,7 +3246,6 @@ function makeDraggable(cardElement) {
 }
 
 // 모든 팝업에 드래그 기능 적용
-makeDraggable(userInfoCard);
 
 // 헤더 시계
 var headerClock = document.getElementById("headerClock");
@@ -3226,3 +3271,321 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// ========================================
+// 숫자 키패드 (학번 · 전화번호)
+// ========================================
+// 키오스크는 물리 키보드가 없고, 키오스크 모드 브라우저에서는 OS 가상 키보드가
+// 아예 안 뜨는 경우가 있어 입력 자체가 막힌다. 대상 입력칸에 inputmode="none" 을
+// 걸어 OS 키보드를 억제하고, 화면 안의 이 키패드로 입력받는다.
+var numPad = document.getElementById("numPad");
+var numPadLabel = document.getElementById("numPadLabel");
+var numPadCloseBtn = document.getElementById("numPadClose");
+var numPadTarget = null;
+
+var closeNumPad = function closeNumPad() {
+  if (!numPad) return;
+  numPad.classList.add("hidden");
+  document.body.classList.remove("numpad-open");
+  numPadTarget = null;
+};
+
+var openNumPad = function openNumPad(input) {
+  if (!numPad || !input) return;
+  numPadTarget = input;
+  var label = document.querySelector('label[for="' + input.id + '"]');
+  if (numPadLabel) numPadLabel.textContent = label ? label.textContent : "숫자 입력";
+  numPad.classList.remove("hidden");
+  document.body.classList.add("numpad-open");
+  // 키패드에 가려지지 않도록 입력칸을 보이는 위치로 끌어올린다
+  if (input.scrollIntoView) {
+    input.scrollIntoView({ block: "center" });
+  }
+};
+
+// 키패드 입력을 실제 입력칸에 반영. maxlength 를 넘기지 않고,
+// 다른 코드가 듣고 있을 수 있으므로 input 이벤트를 발생시킨다.
+var applyNumPadKey = function applyNumPadKey(key) {
+  if (!numPadTarget) return;
+  var value = numPadTarget.value;
+  if (key === "back") {
+    value = value.slice(0, -1);
+  } else if (key === "clear") {
+    value = "";
+  } else {
+    var max = parseInt(numPadTarget.getAttribute("maxlength"), 10);
+    if (!isNaN(max) && value.length >= max) return;
+    value = value + key;
+  }
+  numPadTarget.value = value;
+  numPadTarget.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+if (numPad) {
+  // mousedown/touchstart 기본 동작을 막아야 입력칸이 포커스를 잃지 않는다
+  numPad.addEventListener("mousedown", function (e) {
+    e.preventDefault();
+  });
+  numPad.addEventListener("click", function (e) {
+    var keyBtn = e.target.closest ? e.target.closest(".numpad-key") : null;
+    if (!keyBtn) return;
+    applyNumPadKey(keyBtn.getAttribute("data-key"));
+  });
+}
+if (numPadCloseBtn) {
+  numPadCloseBtn.addEventListener("click", closeNumPad);
+}
+
+// 대상 입력칸에 포커스가 가면 열고, 다른 곳으로 나가면 닫는다
+["studentId", "phone"].forEach(function (id) {
+  var input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("focus", function () {
+    openNumPad(input);
+  });
+});
+document.addEventListener("focusin", function (e) {
+  if (!numPadTarget) return;
+  if (e.target === numPadTarget) return;
+  if (numPad && numPad.contains(e.target)) return;
+  closeNumPad();
+});
+
+// ========================================
+// 한글 키패드 (두벌식) — 이름 입력
+// ========================================
+// 자모를 눌러 음절을 조합한다. 유니코드 한글 음절은
+//   0xAC00 + (초성index * 21 + 중성index) * 28 + 종성index
+// 로 계산된다.
+var HAN_CHO = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+var HAN_JUNG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+var HAN_JONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+
+// 겹모음: ㅗ + ㅏ = ㅘ 처럼 두 모음이 합쳐지는 조합
+var HAN_JUNG_PAIR = {
+  "ㅗㅏ": "ㅘ", "ㅗㅐ": "ㅙ", "ㅗㅣ": "ㅚ",
+  "ㅜㅓ": "ㅝ", "ㅜㅔ": "ㅞ", "ㅜㅣ": "ㅟ",
+  "ㅡㅣ": "ㅢ"
+};
+// 겹받침: ㄱ + ㅅ = ㄳ 처럼 두 자음이 받침으로 합쳐지는 조합
+var HAN_JONG_PAIR = {
+  "ㄱㅅ": "ㄳ", "ㄴㅈ": "ㄵ", "ㄴㅎ": "ㄶ",
+  "ㄹㄱ": "ㄺ", "ㄹㅁ": "ㄻ", "ㄹㅂ": "ㄼ", "ㄹㅅ": "ㄽ",
+  "ㄹㅌ": "ㄾ", "ㄹㅍ": "ㄿ", "ㄹㅎ": "ㅀ", "ㅂㅅ": "ㅄ"
+};
+// 겹받침을 되돌릴 때 쓰는 역방향 표 (ㄳ → ㄱ + ㅅ)
+var HAN_JONG_SPLIT = {};
+Object.keys(HAN_JONG_PAIR).forEach(function (pair) {
+  HAN_JONG_SPLIT[HAN_JONG_PAIR[pair]] = [pair.charAt(0), pair.charAt(1)];
+});
+var HAN_JUNG_SPLIT = {};
+Object.keys(HAN_JUNG_PAIR).forEach(function (pair) {
+  HAN_JUNG_SPLIT[HAN_JUNG_PAIR[pair]] = [pair.charAt(0), pair.charAt(1)];
+});
+
+var isJung = function isJung(j) {
+  return HAN_JUNG.indexOf(j) >= 0;
+};
+
+// 조합 중인 음절 상태. committed 는 이미 확정된 앞부분 문자열.
+var hanState = { cho: "", jung: "", jong: "" };
+var hanCommitted = "";
+var hanTarget = null;
+
+// 현재 상태를 화면에 보일 한 글자로 만든다 (아직 미완성이면 자모 그대로)
+var renderHanState = function renderHanState() {
+  var cho = hanState.cho, jung = hanState.jung, jong = hanState.jong;
+  if (!cho && !jung) return "";
+  if (cho && !jung) return cho;
+  if (!cho && jung) return jung;
+  var code = 0xac00 + (HAN_CHO.indexOf(cho) * 21 + HAN_JUNG.indexOf(jung)) * 28 + HAN_JONG.indexOf(jong || "");
+  return String.fromCharCode(code);
+};
+
+var syncHanInput = function syncHanInput() {
+  if (!hanTarget) return;
+  hanTarget.value = hanCommitted + renderHanState();
+  hanTarget.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+var clearHanState = function clearHanState() {
+  hanState = { cho: "", jung: "", jong: "" };
+};
+
+// 조합 중이던 글자를 확정하고 상태를 비운다
+var commitHanState = function commitHanState() {
+  hanCommitted += renderHanState();
+  clearHanState();
+};
+
+var pushJamo = function pushJamo(jamo) {
+  if (isJung(jamo)) {
+    if (!hanState.cho && !hanState.jung) {
+      // 초성 없이 모음만 → 자모 그대로 확정
+      hanCommitted += jamo;
+    } else if (hanState.cho && !hanState.jung) {
+      hanState.jung = jamo;
+    } else if (hanState.jong) {
+      // 받침이 다음 글자의 초성으로 넘어간다 (예: 한 + ㅏ → 하 + 나)
+      var moved = hanState.jong;
+      var rest = "";
+      if (HAN_JONG_SPLIT[moved]) {
+        rest = HAN_JONG_SPLIT[moved][0];
+        moved = HAN_JONG_SPLIT[moved][1];
+      }
+      hanState.jong = rest;
+      commitHanState();
+      hanState.cho = moved;
+      hanState.jung = jamo;
+    } else {
+      var pair = HAN_JUNG_PAIR[hanState.jung + jamo];
+      if (pair) {
+        hanState.jung = pair;
+      } else {
+        commitHanState();
+        hanCommitted += jamo;
+      }
+    }
+  } else {
+    // 자음
+    if (!hanState.cho && !hanState.jung) {
+      if (HAN_CHO.indexOf(jamo) >= 0) {
+        hanState.cho = jamo;
+      } else {
+        hanCommitted += jamo;
+      }
+    } else if (hanState.cho && !hanState.jung) {
+      // 자음 두 개 연속 → 앞 자음 확정
+      commitHanState();
+      hanState.cho = jamo;
+    } else if (!hanState.jong) {
+      if (HAN_JONG.indexOf(jamo) > 0) {
+        hanState.jong = jamo;
+      } else {
+        commitHanState();
+        hanState.cho = jamo;
+      }
+    } else {
+      var jongPair = HAN_JONG_PAIR[hanState.jong + jamo];
+      if (jongPair) {
+        hanState.jong = jongPair;
+      } else {
+        commitHanState();
+        hanState.cho = jamo;
+      }
+    }
+  }
+  syncHanInput();
+};
+
+// 지우기: 조합 중이면 한 단계씩 되돌리고, 아니면 확정된 마지막 글자를 지운다
+var hanBackspace = function hanBackspace() {
+  if (hanState.jong) {
+    var split = HAN_JONG_SPLIT[hanState.jong];
+    hanState.jong = split ? split[0] : "";
+  } else if (hanState.jung) {
+    var jsplit = HAN_JUNG_SPLIT[hanState.jung];
+    hanState.jung = jsplit ? jsplit[0] : "";
+  } else if (hanState.cho) {
+    hanState.cho = "";
+  } else {
+    hanCommitted = hanCommitted.slice(0, -1);
+  }
+  syncHanInput();
+};
+
+var hanPad = document.getElementById("hanPad");
+var hanPadCloseBtn = document.getElementById("hanPadClose");
+var hanShiftBtn = document.getElementById("hanShift");
+var hanShiftOn = false;
+
+var setHanShift = function setHanShift(on) {
+  hanShiftOn = on;
+  if (!hanPad) return;
+  if (hanShiftBtn) hanShiftBtn.classList.toggle("is-active", on);
+  var keys = hanPad.querySelectorAll(".hanpad-key[data-jamo]");
+  Array.prototype.forEach.call(keys, function (key) {
+    var shifted = key.getAttribute("data-shift");
+    key.textContent = on && shifted ? shifted : key.getAttribute("data-jamo");
+  });
+};
+
+var closeHanPad = function closeHanPad() {
+  if (!hanPad) return;
+  hanPad.classList.add("hidden");
+  document.body.classList.remove("hanpad-open");
+  commitHanState();
+  hanTarget = null;
+  setHanShift(false);
+};
+
+var openHanPad = function openHanPad(input) {
+  if (!hanPad || !input) return;
+  hanTarget = input;
+  // 이미 입력돼 있던 값은 확정된 것으로 보고 조합을 새로 시작한다
+  hanCommitted = input.value;
+  clearHanState();
+  hanPad.classList.remove("hidden");
+  document.body.classList.add("hanpad-open");
+  setHanShift(false);
+};
+
+if (hanPad) {
+  hanPad.addEventListener("mousedown", function (e) {
+    e.preventDefault();
+  });
+  hanPad.addEventListener("click", function (e) {
+    var key = e.target.closest ? e.target.closest(".hanpad-key") : null;
+    if (!key || !hanTarget) return;
+    var action = key.getAttribute("data-han");
+    if (action === "back") {
+      hanBackspace();
+      return;
+    }
+    if (action === "clear") {
+      hanCommitted = "";
+      clearHanState();
+      syncHanInput();
+      return;
+    }
+    if (action === "space") {
+      commitHanState();
+      hanCommitted += " ";
+      syncHanInput();
+      return;
+    }
+    var jamo = key.getAttribute("data-jamo");
+    if (!jamo) return;
+    var shifted = key.getAttribute("data-shift");
+    pushJamo(hanShiftOn && shifted ? shifted : jamo);
+    // 쌍자음은 한 번 쓰면 풀린다 (물리 키보드 Shift 와 같은 동작)
+    if (hanShiftOn) setHanShift(false);
+  });
+}
+if (hanShiftBtn) {
+  hanShiftBtn.addEventListener("click", function () {
+    setHanShift(!hanShiftOn);
+  });
+}
+if (hanPadCloseBtn) {
+  hanPadCloseBtn.addEventListener("click", closeHanPad);
+}
+
+var nameInput = document.getElementById("name");
+if (nameInput) {
+  nameInput.addEventListener("focus", function () {
+    openHanPad(nameInput);
+  });
+  // 물리 키보드나 붙여넣기로 값이 바뀌면 조합 상태가 어긋나므로 다시 맞춘다
+  nameInput.addEventListener("keydown", function () {
+    commitHanState();
+    hanCommitted = nameInput.value;
+    clearHanState();
+  });
+}
+document.addEventListener("focusin", function (e) {
+  if (!hanTarget) return;
+  if (e.target === hanTarget) return;
+  if (hanPad && hanPad.contains(e.target)) return;
+  closeHanPad();
+});
