@@ -2276,10 +2276,13 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             icon: item.icon || '📦',
             title: "".concat(item.name, " \uB300\uC5EC"),
             stock: item.stock,
-            message: noticeMsg,
-            autoClose: 4500
+            message: noticeMsg
           });
         case 7:
+          // 사용자가 취소를 누르면 대여를 진행하지 않는다
+          if (!_context16.v) {
+            return _context16.a(2);
+          }
           dueInfo = currentDueInfo || getDueInfo();
           borrowRecord = {
             studentId: currentUser.studentId,
