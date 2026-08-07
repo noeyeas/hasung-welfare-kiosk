@@ -1260,7 +1260,12 @@ var updateStepIndicator = function updateStepIndicator(step) {
   });
 };
 
+// 현재 보고 있는 화면. 느린 초기화가 뒤늦게 끝나면서 사용자가 이동해 둔
+// 화면을 홈으로 되돌리는 일을 막는 데 쓴다.
+var currentStepName = null;
+
 var showStep = function showStep(step) {
+  currentStepName = step;
   updateStepIndicator(step);
   // 화면 전환 시 기존 자동 로그아웃 타이머 해제 (items 화면이면 아래에서 다시 무장)
   if (typeof clearAutoLogout === 'function') {
@@ -1994,7 +1999,11 @@ var initApp = /*#__PURE__*/function () {
             console.error('localStorage fallback error:', e2);
           }
         case 5:
-          showStep("home");
+          // initApp 은 서버 응답을 기다리느라 수 초가 걸릴 수 있다. 그 사이 사용자가
+          // 이미 다른 화면으로 넘어갔다면 홈으로 되돌리지 않는다 (입력 중이던 내용 보호).
+          if (!currentStepName || currentStepName === "home") {
+            showStep("home");
+          }
         case 6:
           return _context15.a(2);
       }
