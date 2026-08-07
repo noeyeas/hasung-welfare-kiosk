@@ -516,6 +516,9 @@ select {
     /* 위에서부터 채운다. 예전에는 가운데 정렬이라 상단 줄과 제목 사이에
        남는 공간이 통째로 끼어들어 크게 떠 보였다. */
     justify-content: flex-start;
+    /* 완전히 위에 붙으면 답답해 보여 숨 쉴 공간만 준다.
+       가운데 정렬은 남는 공간의 절반이 통째로 끼어들어 너무 벌어졌다. */
+    padding-top: 40px;
     overflow-y: auto;
 }
 /* 안내 문구가 길어 줄바꿈될 때 가로로 넘치지 않도록 */
@@ -1633,6 +1636,9 @@ body.hanpad-open .user-layout {
 /* 화면이 낮으면(태블릿 가로 등) 정보 입력 화면이 넘쳐 스크롤이 생긴다.
    키패드를 상시 표시하면서 세로 여유가 줄었으므로 간격을 죄어 한 화면에 담는다. */
 @media (max-height: 820px) {
+    #step-user {
+        padding-top: 16px;
+    }
     .step-bar {
         margin-bottom: 8px;
     }
