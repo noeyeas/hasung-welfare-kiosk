@@ -2655,7 +2655,6 @@ if (brandLogo) {
 // ── 홈 화면 진입 버튼들 ────────────────────────────────────
 var goBorrowBtn = document.getElementById("goBorrow");
 var goReturnBtn = document.getElementById("goReturn");
-var goAdminBtn = document.getElementById("goAdmin");
 var backToHomeBtn = document.getElementById("backToHome");
 var userStepTitle = document.getElementById("userStepTitle");
 var userStepSub = document.getElementById("userStepSub");
@@ -2693,35 +2692,6 @@ if (backToHomeBtn) {
   });
 }
 
-// 홈 화면의 관리자 버튼 — 로고 더블탭과 동일하게 비밀번호를 요구한다
-if (goAdminBtn) {
-  goAdminBtn.addEventListener("click", function () {
-    if (adminEntering) return;
-    adminEntering = true;
-    Promise.resolve(showPasswordPrompt("관리자 비밀번호를 입력하세요")).then(function (password) {
-      if (password === null) {
-        adminEntering = false;
-        return;
-      }
-      return verifyAdminPassword(password).then(function (isValid) {
-        if (isValid) {
-          adminAuthPassword = password; // 서버측 파괴적 작업 인증용 (메모리 한정)
-          showStep("admin");
-        } else {
-          showConfirm({
-            icon: '🔒',
-            title: '접근 거부',
-            message: '비밀번호가 틀렸습니다.',
-            autoClose: 2000
-          });
-        }
-        adminEntering = false;
-      });
-    })["catch"](function () {
-      adminEntering = false;
-    });
-  });
-}
 
 // 변경 로그 화면에서 돌아가기 버튼
 backFromChangelogBtn.addEventListener("click", function () {

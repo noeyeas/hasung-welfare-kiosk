@@ -398,15 +398,6 @@ p {
     color: rgba(255, 255, 255, 0.78);
 }
 
-.home-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-top: auto;
-    padding-top: 4px;
-}
 .stock-chips {
     display: flex;
     gap: 8px;
@@ -1423,9 +1414,6 @@ select {
     }
     .home-title {
         font-size: 1.9rem;
-    }
-    .home-footer {
-        justify-content: center;
     }
     .items-toolbar {
         flex-direction: column;
