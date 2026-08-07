@@ -391,24 +391,6 @@ function doPost(e) {
       arrayToSheet(sheet, data, headers);
       result = { success: true };
 
-    } else if (action === 'saveAll') {
-      // 파괴적 작업(전체 데이터 덮어쓰기/복원): 관리자 인증 필요
-      if (!verifyAdminAuth(params)) {
-        result = { success: false, error: 'Admin auth required' };
-      } else if (!params.data) {
-        result = { success: false, error: 'Invalid payload' };
-      } else {
-        arrayToSheet(getSheet('items'), params.data.items, ['name', 'type', 'stock', 'notice', 'icon', 'image']);
-        arrayToSheet(getSheet('borrowed'), dedupBorrowed(params.data.borrowed), BORROWED_HEADERS);
-        if (params.data.changeLog) {
-          arrayToSheet(getSheet('changeLog'), params.data.changeLog, ['action', 'details', 'time']);
-        }
-        if (params.data.loginLog) {
-          arrayToSheet(getSheet('loginLog'), params.data.loginLog, ['studentId', 'name', 'phone', 'time']);
-        }
-        result = { success: true };
-      }
-
     } else {
       result = { success: false, error: 'Unknown action' };
     }
