@@ -1182,6 +1182,9 @@ var items = [];
 var borrowedRecords = [];
 // 누적 대여·수령 횟수 (서버 stats 카운터에서 로드, 캐시 폴백) - 로그와 무관한 진짜 누적
 var statsTotalBorrow = loadFromLocalCache('kiosk_statsTotalBorrow');
+// 서버 응답을 기다리는 중인지. 기다리는 동안 캐시값을 보여주면 응답 도착 시
+// 숫자가 뛰어 보이므로 '—' 로 대신한다. 요청이 실패하면 다시 캐시값으로 돌아간다.
+var statsTotalBorrowLoading = false;
 
 // 데이터 저장 함수 (localStorage 캐시 + API 동기화)
 var saveData = /*#__PURE__*/function () {
@@ -1351,7 +1354,11 @@ var showStep = function showStep(step) {
     }
     // 관리자 모드 진입 시 API에서 최신 데이터 가져오기 (전체 PII 포함 → POST + 관리자 인증)
     // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
+    // 누적 카운터는 서버가 권위 값이다. 캐시값을 먼저 보여주면 응답이 온 순간
+    // 숫자가 뛰어 오작동처럼 보이므로, 응답을 기다리는 동안에는 '—' 로 둔다.
+    statsTotalBorrowLoading = true;
     apiPost({ action: 'getAllAdmin', adminPassword: adminAuthPassword }, function (err, response) {
+      statsTotalBorrowLoading = false;
       // req1: 응답 없음(err)·success=false·data 파손 시 로컬 메모리/캐시를 절대 덮어쓰지 않고 캐시로 렌더링만
       var ok = !err && response && response.success && response.data;
       // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
@@ -1481,7 +1488,7 @@ var renderAdminData = function renderAdminData() {
   var statTodayBorrow = document.getElementById('statTodayBorrow');
   var statTotalBorrowed = document.getElementById('statTotalBorrowed');
   var statOverdue = document.getElementById('statOverdue');
-  if (statTodayBorrow) statTodayBorrow.textContent = totalBorrowCount;
+  if (statTodayBorrow) statTodayBorrow.textContent = statsTotalBorrowLoading ? '—' : totalBorrowCount;
   if (statTotalBorrowed) statTotalBorrowed.textContent = totalBorrowed;
   if (statOverdue) statOverdue.textContent = overdueCount;
 
