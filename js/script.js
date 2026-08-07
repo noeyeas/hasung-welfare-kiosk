@@ -1279,6 +1279,7 @@ var showStep = function showStep(step) {
   // 화면을 옮기면 숫자 키패드는 항상 닫는다.
   // (initApp 이 이 파일 아래쪽 정의보다 먼저 showStep 을 부를 수 있어 typeof 로 방어)
   if (typeof closeNumPad === "function") closeNumPad();
+  if (typeof closeHanPad === "function") closeHanPad();
   var mobileBorrowedPanelEl = document.getElementById("mobileBorrowedPanel");
   if (mobileBorrowedPanelEl) mobileBorrowedPanelEl.classList.add("hidden");
   if (brandLogo) brandLogo.classList.add("hidden");
@@ -3307,4 +3308,243 @@ document.addEventListener("focusin", function (e) {
   if (e.target === numPadTarget) return;
   if (numPad && numPad.contains(e.target)) return;
   closeNumPad();
+});
+
+// ========================================
+// 한글 키패드 (두벌식) — 이름 입력
+// ========================================
+// 자모를 눌러 음절을 조합한다. 유니코드 한글 음절은
+//   0xAC00 + (초성index * 21 + 중성index) * 28 + 종성index
+// 로 계산된다.
+var HAN_CHO = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+var HAN_JUNG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+var HAN_JONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+
+// 겹모음: ㅗ + ㅏ = ㅘ 처럼 두 모음이 합쳐지는 조합
+var HAN_JUNG_PAIR = {
+  "ㅗㅏ": "ㅘ", "ㅗㅐ": "ㅙ", "ㅗㅣ": "ㅚ",
+  "ㅜㅓ": "ㅝ", "ㅜㅔ": "ㅞ", "ㅜㅣ": "ㅟ",
+  "ㅡㅣ": "ㅢ"
+};
+// 겹받침: ㄱ + ㅅ = ㄳ 처럼 두 자음이 받침으로 합쳐지는 조합
+var HAN_JONG_PAIR = {
+  "ㄱㅅ": "ㄳ", "ㄴㅈ": "ㄵ", "ㄴㅎ": "ㄶ",
+  "ㄹㄱ": "ㄺ", "ㄹㅁ": "ㄻ", "ㄹㅂ": "ㄼ", "ㄹㅅ": "ㄽ",
+  "ㄹㅌ": "ㄾ", "ㄹㅍ": "ㄿ", "ㄹㅎ": "ㅀ", "ㅂㅅ": "ㅄ"
+};
+// 겹받침을 되돌릴 때 쓰는 역방향 표 (ㄳ → ㄱ + ㅅ)
+var HAN_JONG_SPLIT = {};
+Object.keys(HAN_JONG_PAIR).forEach(function (pair) {
+  HAN_JONG_SPLIT[HAN_JONG_PAIR[pair]] = [pair.charAt(0), pair.charAt(1)];
+});
+var HAN_JUNG_SPLIT = {};
+Object.keys(HAN_JUNG_PAIR).forEach(function (pair) {
+  HAN_JUNG_SPLIT[HAN_JUNG_PAIR[pair]] = [pair.charAt(0), pair.charAt(1)];
+});
+
+var isJung = function isJung(j) {
+  return HAN_JUNG.indexOf(j) >= 0;
+};
+
+// 조합 중인 음절 상태. committed 는 이미 확정된 앞부분 문자열.
+var hanState = { cho: "", jung: "", jong: "" };
+var hanCommitted = "";
+var hanTarget = null;
+
+// 현재 상태를 화면에 보일 한 글자로 만든다 (아직 미완성이면 자모 그대로)
+var renderHanState = function renderHanState() {
+  var cho = hanState.cho, jung = hanState.jung, jong = hanState.jong;
+  if (!cho && !jung) return "";
+  if (cho && !jung) return cho;
+  if (!cho && jung) return jung;
+  var code = 0xac00 + (HAN_CHO.indexOf(cho) * 21 + HAN_JUNG.indexOf(jung)) * 28 + HAN_JONG.indexOf(jong || "");
+  return String.fromCharCode(code);
+};
+
+var syncHanInput = function syncHanInput() {
+  if (!hanTarget) return;
+  hanTarget.value = hanCommitted + renderHanState();
+  hanTarget.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+var clearHanState = function clearHanState() {
+  hanState = { cho: "", jung: "", jong: "" };
+};
+
+// 조합 중이던 글자를 확정하고 상태를 비운다
+var commitHanState = function commitHanState() {
+  hanCommitted += renderHanState();
+  clearHanState();
+};
+
+var pushJamo = function pushJamo(jamo) {
+  if (isJung(jamo)) {
+    if (!hanState.cho && !hanState.jung) {
+      // 초성 없이 모음만 → 자모 그대로 확정
+      hanCommitted += jamo;
+    } else if (hanState.cho && !hanState.jung) {
+      hanState.jung = jamo;
+    } else if (hanState.jong) {
+      // 받침이 다음 글자의 초성으로 넘어간다 (예: 한 + ㅏ → 하 + 나)
+      var moved = hanState.jong;
+      var rest = "";
+      if (HAN_JONG_SPLIT[moved]) {
+        rest = HAN_JONG_SPLIT[moved][0];
+        moved = HAN_JONG_SPLIT[moved][1];
+      }
+      hanState.jong = rest;
+      commitHanState();
+      hanState.cho = moved;
+      hanState.jung = jamo;
+    } else {
+      var pair = HAN_JUNG_PAIR[hanState.jung + jamo];
+      if (pair) {
+        hanState.jung = pair;
+      } else {
+        commitHanState();
+        hanCommitted += jamo;
+      }
+    }
+  } else {
+    // 자음
+    if (!hanState.cho && !hanState.jung) {
+      if (HAN_CHO.indexOf(jamo) >= 0) {
+        hanState.cho = jamo;
+      } else {
+        hanCommitted += jamo;
+      }
+    } else if (hanState.cho && !hanState.jung) {
+      // 자음 두 개 연속 → 앞 자음 확정
+      commitHanState();
+      hanState.cho = jamo;
+    } else if (!hanState.jong) {
+      if (HAN_JONG.indexOf(jamo) > 0) {
+        hanState.jong = jamo;
+      } else {
+        commitHanState();
+        hanState.cho = jamo;
+      }
+    } else {
+      var jongPair = HAN_JONG_PAIR[hanState.jong + jamo];
+      if (jongPair) {
+        hanState.jong = jongPair;
+      } else {
+        commitHanState();
+        hanState.cho = jamo;
+      }
+    }
+  }
+  syncHanInput();
+};
+
+// 지우기: 조합 중이면 한 단계씩 되돌리고, 아니면 확정된 마지막 글자를 지운다
+var hanBackspace = function hanBackspace() {
+  if (hanState.jong) {
+    var split = HAN_JONG_SPLIT[hanState.jong];
+    hanState.jong = split ? split[0] : "";
+  } else if (hanState.jung) {
+    var jsplit = HAN_JUNG_SPLIT[hanState.jung];
+    hanState.jung = jsplit ? jsplit[0] : "";
+  } else if (hanState.cho) {
+    hanState.cho = "";
+  } else {
+    hanCommitted = hanCommitted.slice(0, -1);
+  }
+  syncHanInput();
+};
+
+var hanPad = document.getElementById("hanPad");
+var hanPadCloseBtn = document.getElementById("hanPadClose");
+var hanShiftBtn = document.getElementById("hanShift");
+var hanShiftOn = false;
+
+var setHanShift = function setHanShift(on) {
+  hanShiftOn = on;
+  if (!hanPad) return;
+  if (hanShiftBtn) hanShiftBtn.classList.toggle("is-active", on);
+  var keys = hanPad.querySelectorAll(".hanpad-key[data-jamo]");
+  Array.prototype.forEach.call(keys, function (key) {
+    var shifted = key.getAttribute("data-shift");
+    key.textContent = on && shifted ? shifted : key.getAttribute("data-jamo");
+  });
+};
+
+var closeHanPad = function closeHanPad() {
+  if (!hanPad) return;
+  hanPad.classList.add("hidden");
+  document.body.classList.remove("hanpad-open");
+  commitHanState();
+  hanTarget = null;
+  setHanShift(false);
+};
+
+var openHanPad = function openHanPad(input) {
+  if (!hanPad || !input) return;
+  hanTarget = input;
+  // 이미 입력돼 있던 값은 확정된 것으로 보고 조합을 새로 시작한다
+  hanCommitted = input.value;
+  clearHanState();
+  hanPad.classList.remove("hidden");
+  document.body.classList.add("hanpad-open");
+  setHanShift(false);
+};
+
+if (hanPad) {
+  hanPad.addEventListener("mousedown", function (e) {
+    e.preventDefault();
+  });
+  hanPad.addEventListener("click", function (e) {
+    var key = e.target.closest ? e.target.closest(".hanpad-key") : null;
+    if (!key || !hanTarget) return;
+    var action = key.getAttribute("data-han");
+    if (action === "back") {
+      hanBackspace();
+      return;
+    }
+    if (action === "clear") {
+      hanCommitted = "";
+      clearHanState();
+      syncHanInput();
+      return;
+    }
+    if (action === "space") {
+      commitHanState();
+      hanCommitted += " ";
+      syncHanInput();
+      return;
+    }
+    var jamo = key.getAttribute("data-jamo");
+    if (!jamo) return;
+    var shifted = key.getAttribute("data-shift");
+    pushJamo(hanShiftOn && shifted ? shifted : jamo);
+    // 쌍자음은 한 번 쓰면 풀린다 (물리 키보드 Shift 와 같은 동작)
+    if (hanShiftOn) setHanShift(false);
+  });
+}
+if (hanShiftBtn) {
+  hanShiftBtn.addEventListener("click", function () {
+    setHanShift(!hanShiftOn);
+  });
+}
+if (hanPadCloseBtn) {
+  hanPadCloseBtn.addEventListener("click", closeHanPad);
+}
+
+var nameInput = document.getElementById("name");
+if (nameInput) {
+  nameInput.addEventListener("focus", function () {
+    openHanPad(nameInput);
+  });
+  // 물리 키보드나 붙여넣기로 값이 바뀌면 조합 상태가 어긋나므로 다시 맞춘다
+  nameInput.addEventListener("keydown", function () {
+    commitHanState();
+    hanCommitted = nameInput.value;
+    clearHanState();
+  });
+}
+document.addEventListener("focusin", function (e) {
+  if (!hanTarget) return;
+  if (e.target === hanTarget) return;
+  if (hanPad && hanPad.contains(e.target)) return;
+  closeHanPad();
 });
