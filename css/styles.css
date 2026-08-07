@@ -195,9 +195,13 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    /* 좁아지면 넘치지 않고 줄을 바꾼다 */
+    flex-wrap: wrap;
     gap: 12px;
     flex-shrink: 0;
     margin-bottom: 12px;
+    /* 알약 모서리가 카드 끝에 닿아 잘려 보이지 않게 안쪽으로 들인다 */
+    padding: 0 6px;
 }
 .step-bar.hidden {
     display: none !important;
@@ -509,12 +513,9 @@ select {
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    /* 내용이 컨테이너보다 길어지면(예: 키패드가 열렸을 때) 일반 center 는
-       위쪽으로 넘친 부분을 스크롤로 닿을 수 없게 만들어 잘라먹는다.
-       safe 를 붙이면 그 경우 자동으로 위 정렬로 떨어진다.
-       두 줄로 쓴 이유는 safe 를 모르는 브라우저가 앞 줄을 쓰게 하기 위함. */
-    justify-content: center;
-    justify-content: safe center;
+    /* 위에서부터 채운다. 예전에는 가운데 정렬이라 상단 줄과 제목 사이에
+       남는 공간이 통째로 끼어들어 크게 떠 보였다. */
+    justify-content: flex-start;
     overflow-y: auto;
 }
 /* 안내 문구가 길어 줄바꿈될 때 가로로 넘치지 않도록 */
