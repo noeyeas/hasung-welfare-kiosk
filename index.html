@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=75">
+    <link rel="stylesheet" href="css/styles.css?v=76">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -199,6 +199,8 @@
                 <h1 id="userStepTitle">대여자 정보를 입력해 주세요</h1>
                 <p id="userStepSub">이름 · 학번 · 연락처만 입력하면 바로 대여 · 다음 날 18시까지 반납 (금·토 대여는 월요일)</p>
             </div>
+            <!-- 넓은 화면에서는 왼쪽 폼 / 오른쪽 키패드 2단, 좁은 화면에서는 세로로 쌓인다 -->
+            <div class="user-layout">
             <form id="user-form" novalidate>
                 <div class="field">
                     <label for="name">이름</label>
@@ -226,9 +228,8 @@
                 </div>
                 <button class="btn-primary" type="submit" id="submitBtn">다음 단계 →</button>
             </form>
-        </section>
 
-        <!-- 숫자 키패드 — 학번·전화번호 입력 시 화면 하단에 뜬다 -->
+        <!-- 숫자 키패드 — 학번·전화번호 칸을 누르면 폼 옆에 나타난다 -->
         <div id="numPad" class="numpad hidden" role="group" aria-label="숫자 키패드">
             <div class="numpad-head">
                 <span id="numPadLabel" class="numpad-label"></span>
@@ -249,6 +250,8 @@
                 <button type="button" class="numpad-key is-muted" data-key="back">← 지우기</button>
             </div>
         </div>
+            </div>
+        </section>
 
         <section id="step-items" class="hidden">
             <div class="items-toolbar">
@@ -339,6 +342,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=83"></script>
+    <script src="js/script.js?v=84"></script>
 </body>
 </html>
