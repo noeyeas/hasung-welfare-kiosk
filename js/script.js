@@ -1373,6 +1373,10 @@ var showStep = function showStep(step) {
   stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
+  // 대여자 정보 칩은 물품 선택 화면에서만 쓴다. 다른 화면으로 옮기면 비운다.
+  // 칩이 상단 줄(#stepBar)로 올라오면서 정보 입력 화면에서도 보이게 됐고,
+  // 그대로 두면 앞사람 이름·학번이 다음 이용자 화면에 남는다.
+  if (userChips && step !== "items") userChips.innerHTML = "";
   // 화면을 옮기면 숫자 키패드는 항상 닫는다.
   // (initApp 이 이 파일 아래쪽 정의보다 먼저 showStep 을 부를 수 있어 typeof 로 방어)
   if (typeof closeNumPad === "function") closeNumPad();
