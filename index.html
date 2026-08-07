@@ -23,7 +23,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=95">
+    <link rel="stylesheet" href="css/styles.css?v=96">
+    <link rel="stylesheet" href="css/admin-console.css?v=1">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -75,122 +76,184 @@
         </section>
 
         <section id="step-admin" class="hidden">
-            <div id="adminTitle" class="step-title">관리자 모드</div>
-            <!-- 태블릿용 대여현황 패널 (왼쪽 고정) -->
-            <div id="mobileBorrowedPanel" class="hidden" style="position: fixed; left: 10px; top: 12px; width: 32vw; height: calc(100vh - var(--marquee-h) - 24px); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px; overflow-y: auto; z-index: 1100;">
-                <h3 style="margin: 0 0 10px; color: var(--text-2); font-size: 0.8rem; font-weight: 700;">📝 대여 기록</h3>
-                <div id="mobileBorrowedTable" style="font-size: 0.75rem;"></div>
-            </div>
+            <div class="admin-shell">
+                <!-- 좌측(태블릿에서는 상단) 네비게이션 -->
+                <nav id="adminNav" class="admin-nav">
+                    <div class="admin-nav-cap">운영</div>
+                    <button type="button" class="admin-nav-item is-active" data-panel="dash">📊 대시보드</button>
+                    <button type="button" class="admin-nav-item" data-panel="lend">📝 대여 현황<span id="navLendBadge" class="admin-nav-badge is-mute">0</span></button>
+                    <button type="button" class="admin-nav-item" data-panel="overdue">⚠️ 연체 관리<span id="navOverdueBadge" class="admin-nav-badge">0</span></button>
+                    <div class="admin-nav-cap">데이터</div>
+                    <button type="button" class="admin-nav-item" data-panel="stock">📦 물품 · 재고</button>
+                    <div class="admin-nav-foot">
+                        <button type="button" id="logoutAdmin" class="admin-nav-item is-exit">← 사용자 모드로</button>
+                    </div>
+                </nav>
 
-            <!-- 통계 대시보드 -->
-            <div id="adminDashboard">
-                <div class="stat-card is-info">
-                    <div class="stat-label">📊 누적 대여·수령 횟수</div>
-                    <div id="statTodayBorrow" class="stat-value">0</div>
-                    <div class="stat-hint">누적 총합 (반납해도 안 줄어듦)</div>
+                <div class="admin-main">
+                    <!-- 상단 바 -->
+                    <div class="admin-topbar">
+                        <div class="admin-crumb">
+                            <div id="adminTitle" class="admin-crumb-title">관리자 모드</div>
+                            <small id="adminCrumbSub">—</small>
+                        </div>
+                        <span class="admin-sync"><span id="adminSyncDot" class="dot"></span><span id="adminSyncText">동기화 확인 중</span></span>
+                        <button type="button" id="adminRefresh" class="admin-btn">↻ 새로고침</button>
+                    </div>
+
+                    <!-- ── 대시보드 ── -->
+                    <div class="admin-panel is-active" data-panel="dash">
+                        <div id="adminDashboard">
+                            <div class="stat-card is-info">
+                                <div class="stat-label">📊 누적 대여·수령</div>
+                                <div id="statTodayBorrow" class="stat-value">0</div>
+                                <div class="stat-hint">누적 총합 (반납해도 안 줄어듦)</div>
+                            </div>
+                            <div class="stat-card is-amber">
+                                <div class="stat-label">📦 현재 대여 중</div>
+                                <div id="statTotalBorrowed" class="stat-value">0</div>
+                                <div class="stat-hint">미반납 건수 (반납 시 줄어듦)</div>
+                            </div>
+                            <div class="stat-card is-danger">
+                                <div class="stat-label">⚠️ 연체 중인 인원</div>
+                                <div id="statOverdue" class="stat-value">0</div>
+                                <div class="stat-hint">반납 기한이 지난 건수</div>
+                            </div>
+                            <div class="stat-card is-success">
+                                <div class="stat-label">✅ 오늘 반납 완료</div>
+                                <div id="statTodayReturn" class="stat-value">0</div>
+                                <div class="stat-hint">오늘 처리된 반납 건수</div>
+                            </div>
+                        </div>
+
+                        <div id="adminAlert" class="admin-alert hidden">
+                            <span class="admin-alert-ico">⚠️</span>
+                            <div id="adminAlertText" class="admin-alert-text"></div>
+                            <button type="button" class="admin-btn is-danger" data-goto="stock">재고 화면으로</button>
+                        </div>
+
+                        <div class="admin-card">
+                            <div class="admin-card-head">
+                                <div class="admin-card-title">📋 최근 활동</div>
+                            </div>
+                            <div id="adminFeed" class="admin-feed"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── 대여 현황 ── -->
+                    <div class="admin-panel" data-panel="lend">
+                        <div class="admin-card">
+                            <div class="admin-card-head">
+                                <div class="admin-card-title">📝 현재 대여 기록</div>
+                            </div>
+                            <div class="admin-toolrow">
+                                <input id="lendSearch" class="admin-search" type="text" placeholder="이름 · 학번 · 물품 검색…" autocomplete="off">
+                            </div>
+                            <div id="adminBorrowedTable" class="admin-data-table"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── 연체 관리 ── -->
+                    <div class="admin-panel" data-panel="overdue">
+                        <div class="admin-card">
+                            <div class="admin-card-head">
+                                <div class="admin-card-title" style="color: var(--danger);">⚠️ 연체된 대여 기록</div>
+                            </div>
+                            <div id="overdueTable" class="admin-data-table"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── 물품 · 재고 ── -->
+                    <div class="admin-panel" data-panel="stock">
+                        <div class="admin-card">
+                            <div class="admin-card-head">
+                                <div class="admin-card-title">📦 물품 재고 현황</div>
+                                <div class="admin-card-spacer"></div>
+                                <button type="button" id="toggleAddItem" class="admin-btn">＋ 물품 추가</button>
+                            </div>
+                            <div class="admin-toolrow">
+                                <input id="stockSearch" class="admin-search" type="text" placeholder="물품명 검색…" autocomplete="off">
+                                <button type="button" class="admin-chip is-on" data-stock-filter="all">전체</button>
+                                <button type="button" class="admin-chip" data-stock-filter="대여">대여</button>
+                                <button type="button" class="admin-chip" data-stock-filter="소모품">소모품</button>
+                                <button type="button" class="admin-chip" data-stock-filter="low">부족</button>
+                            </div>
+                            <div id="adminStockTable" class="admin-data-table"></div>
+                        </div>
+
+                        <div id="addItemCard" class="admin-form-card hidden">
+                            <div class="admin-card-title" style="margin-bottom: 6px;">➕ 새 물품 추가</div>
+                            <div class="field">
+                                <label for="newItemIcon">아이콘 (이모지 입력)</label>
+                                <input id="newItemIcon" type="text" placeholder="이모지 입력 예: 🌂" style="font-size: 1.3rem;">
+                            </div>
+                            <div class="field">
+                                <label for="newItemName">물품명</label>
+                                <input id="newItemName" type="text" placeholder="예: 우산">
+                            </div>
+                            <div class="field">
+                                <label for="newItemType">구분</label>
+                                <select id="newItemType">
+                                    <option value="대여">대여</option>
+                                    <option value="소모품">소모품</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="newItemStock">초기 재고</label>
+                                <input id="newItemStock" type="number" min="0" placeholder="0">
+                            </div>
+                            <div class="field">
+                                <label for="newItemNotice">주의사항</label>
+                                <input id="newItemNotice" type="text" placeholder="예: 비 오는 날 사용 후 충분히 말려서 반납">
+                            </div>
+                            <button id="addItemBtn" class="btn-primary">물품 추가</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card is-amber">
-                    <div class="stat-label">📦 현재 대여 중</div>
-                    <div id="statTotalBorrowed" class="stat-value">0</div>
-                    <div class="stat-hint">미반납 건수 (반납 시 줄어듦)</div>
-                </div>
-                <div class="stat-card is-danger">
-                    <div class="stat-label">⚠️ 연체 중인 인원</div>
-                    <div id="statOverdue" class="stat-value">0</div>
-                    <div class="stat-hint">반납 기한이 지난 건수</div>
-                </div>
             </div>
+            <!-- 연체 화면 전환용 (네비로 대체됐지만 기존 스크립트 호환) -->
+            <button type="button" id="viewOverdue" class="hidden"></button>
+            <button type="button" id="backToAdmin" class="hidden"></button>
+        </section>
 
-            <div class="admin-toolbar">
-                <button id="logoutAdmin" class="btn-primary">사용자 모드로 돌아가기</button>
-                <button id="viewOverdue" class="btn-primary btn-danger">연체자 목록 보기</button>
-            </div>
+        <section id="step-changelog" class="hidden">
+            <div class="admin-shell">
+                <nav id="changelogNav" class="admin-nav">
+                    <div class="admin-nav-cap">추가 관리자</div>
+                    <button type="button" id="tabChangeLog" class="admin-nav-item is-active log-tab">📋 변경 로그</button>
+                    <button type="button" id="tabLoginLog" class="admin-nav-item log-tab">👤 로그인 기록</button>
+                    <div class="admin-nav-cap">백업</div>
+                    <button type="button" id="exportBackupBtn" class="admin-nav-item">💾 백업 내보내기</button>
+                    <button type="button" id="importBackupBtn" class="admin-nav-item">📂 백업 불러오기</button>
+                    <div class="admin-nav-foot">
+                        <button type="button" id="backFromChangelog" class="admin-nav-item is-exit">← 관리자 모드로</button>
+                    </div>
+                </nav>
 
-            <!-- 데이터 백업 섹션은 추가 관리자 모드(변경 로그)로 이동 -->
+                <div class="admin-main">
+                    <div class="admin-topbar">
+                        <div class="admin-crumb">
+                            <div class="admin-crumb-title">변경 로그</div>
+                            <small>최근 50건 · 최신순</small>
+                        </div>
+                    </div>
 
-            <div>
-                <!-- 물품 재고 현황 및 새 물품 추가 -->
-                <h3 class="admin-section-title">📦 물품 재고 현황</h3>
-                <div id="adminStockTable" class="admin-data-table"></div>
+                    <div id="changeLogPanel" class="admin-panel is-active">
+                        <div class="admin-card">
+                            <div class="admin-card-head"><div class="admin-card-title">📋 최근 변경 로그</div></div>
+                            <div id="changeLogView" class="admin-data-table"></div>
+                        </div>
+                    </div>
 
-                <h3 class="admin-section-title">➕ 새 물품 추가</h3>
-                <div class="admin-form-card">
-                    <div class="field">
-                        <label for="newItemIcon">아이콘 (이모지 입력)</label>
-                        <input id="newItemIcon" type="text" placeholder="이모지 입력 예: 🌂" style="font-size: 1.3rem;">
+                    <div id="loginLogPanel" class="admin-panel">
+                        <div class="admin-card">
+                            <div class="admin-card-head"><div class="admin-card-title">👤 로그인 기록</div></div>
+                            <div id="loginLogTable" class="admin-data-table"></div>
+                        </div>
                     </div>
-                    <div class="field">
-                        <label for="newItemName">물품명</label>
-                        <input id="newItemName" type="text" placeholder="예: 우산">
-                    </div>
-                    <div class="field">
-                        <label for="newItemType">구분</label>
-                        <select id="newItemType">
-                            <option value="대여">대여</option>
-                            <option value="소모품">소모품</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="newItemStock">초기 재고</label>
-                        <input id="newItemStock" type="number" min="0" placeholder="0">
-                    </div>
-                    <div class="field">
-                        <label for="newItemNotice">주의사항</label>
-                        <input id="newItemNotice" type="text" placeholder="예: 비 오는 날 사용 후 충분히 말려서 반납">
-                    </div>
-                    <button id="addItemBtn" class="btn-primary">물품 추가</button>
                 </div>
             </div>
         </section>
-
-        <!-- 관리자 모드 현재 대여 기록 (왼쪽 고정) -->
-        <div id="adminBorrowedPopup" class="hidden" style="position: fixed; left: 22px; top: 18px; width: 700px; height: calc(100vh - var(--marquee-h) - 32px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
-            <h3 style="margin: 0 0 14px; color: var(--text); font-size: 1rem; font-weight: 700; flex-shrink: 0;">📝 현재 대여 기록</h3>
-            <div id="adminBorrowedTable" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
-        </div>
-
-        <section id="step-overdue" class="hidden">
-            <div class="step-title">연체자 목록</div>
-            <div class="actions">
-                <button id="backToAdmin" class="secondary">관리자 모드로 돌아가기</button>
-            </div>
-
-            <h3 class="admin-section-title" style="color: var(--danger);">⚠️ 연체된 대여 기록</h3>
-            <div id="overdueTable" class="admin-data-table"></div>
-        </section>
-
-        <section id="step-changelog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); z-index: 2000; padding: 20px 22px calc(var(--marquee-h) + 16px); display: flex; flex-direction: column; overflow: hidden;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap;">
-                <div class="step-title" style="margin: 0; white-space: nowrap;">변경 로그</div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="exportBackupBtn" class="btn-primary btn-success" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">💾 백업 내보내기</button>
-                    <button id="importBackupBtn" class="btn-primary btn-info" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">📂 백업 불러오기</button>
-                    <button id="backFromChangelog" class="btn-primary" style="width: auto; padding: 10px 18px; font-size: 0.78rem; min-height: 44px;">관리자 모드로 돌아가기</button>
-                </div>
-            </div>
-
-            <!-- 탭 버튼 -->
-            <div id="logTabs">
-                <button id="tabChangeLog" class="log-tab active" style="background: #2a3044;">📋 최근 변경 로그</button>
-                <button id="tabLoginLog" class="log-tab" style="background: transparent;">👤 로그인 기록</button>
-            </div>
-
-            <!-- 변경 로그 내용 -->
-            <div id="changeLogPanel" style="flex: 1; overflow-y: auto;">
-                <div id="changeLogView" class="admin-data-table"></div>
-            </div>
-
-            <!-- 로그인 기록 내용 -->
-            <div id="loginLogPanel" class="hidden" style="flex: 1; overflow-y: auto;">
-                <div id="loginLogTable" class="admin-data-table"></div>
-            </div>
-        </section>
-
-        <!-- 기존 로그인 기록 팝업 유지 (데스크탑용) -->
-        <div id="loginLogPopup" class="hidden" style="position: fixed; left: 22px; top: 18px; width: 700px; height: calc(100vh - var(--marquee-h) - 32px); z-index: 1100; display: flex; flex-direction: column; overflow: hidden;">
-            <h3 style="margin: 0 0 14px; color: var(--text); font-size: 1rem; font-weight: 700; flex-shrink: 0;">👤 로그인 기록</h3>
-            <div id="loginLogTable2" class="admin-data-table" style="flex: 1; overflow-y: auto; overflow-x: hidden; max-height: none;"></div>
-        </div>
 
         <section id="step-user" class="hidden">
             <div class="step-head">
@@ -304,9 +367,10 @@
         </section>
 
         <section id="step-items" class="hidden">
+            <!-- 대여자 정보 — 툴바보다 위, 자체 줄에 둔다 -->
+            <div id="userChips" class="user-chips"></div>
+
             <div class="items-toolbar">
-                <!-- 대여자 정보 — 떠 있는 카드 대신 툴바 안에 칩으로 둔다 -->
-                <div id="userChips" class="user-chips"></div>
                 <div class="filter-row" id="filterRow">
                     <button id="filterAll" class="filter-btn active" data-filter="all">전체</button>
                     <button id="filterBorrow" class="filter-btn" data-filter="borrow">대여 가능만</button>
