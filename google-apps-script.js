@@ -88,6 +88,17 @@ function dedupBorrowed(rows) {
   return out;
 }
 
+// 소모품 수령 기록 시트 — 누적 카운터의 중복 증가를 막는 멱등 키 저장소
+var CONSUMED_HEADERS = ['id', 'studentId', 'itemName', 'consumedAt'];
+
+function getConsumedSheet() {
+  var sheet = getSheet('consumed');
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, CONSUMED_HEADERS.length).setValues([CONSUMED_HEADERS]);
+  }
+  return sheet;
+}
+
 // ========================================
 // 누적 통계 카운터 ('stats' 시트) - 로그 200개 캡·덮어쓰기와 무관한 진짜 누적
 // ========================================
@@ -355,9 +366,35 @@ function doPost(e) {
       result = { success: true };
 
     } else if (action === 'recordConsume') {
-      // 소모품 수령: 누적 카운터만 +1 (borrowed 시트에는 기록하지 않음)
-      incrementStat('totalBorrow', 1);
-      result = { success: true };
+      // 소모품 수령: 누적 카운터 +1.
+      // 대여(addBorrowed)는 (학번, 물품명)으로 멱등하지만 수령은 반납이 없어
+      // 그런 자연 키가 없다. 그래서 클라이언트가 만든 요청 id 를 시트에 남겨
+      // 같은 요청이 두 번 도달해도 한 번만 세도록 한다.
+      // (id 가 없는 구버전 클라이언트 요청은 예전처럼 그냥 +1 한다)
+      var consumeId = params.id ? String(params.id) : '';
+      if (!consumeId) {
+        incrementStat('totalBorrow', 1);
+        result = { success: true };
+      } else {
+        var cSheet = getConsumedSheet();
+        var cData = sheetToArray(cSheet);
+        var already = cData.some(function(r) {
+          return String(r.id) === consumeId;
+        });
+        if (already) {
+          result = { success: true, duplicate: true };
+        } else {
+          cData.push({
+            id: consumeId,
+            studentId: params.studentId || '',
+            itemName: params.itemName || '',
+            consumedAt: new Date().toISOString()
+          });
+          arrayToSheet(cSheet, cData, CONSUMED_HEADERS);
+          incrementStat('totalBorrow', 1);
+          result = { success: true };
+        }
+      }
 
     } else if (action === 'updateStock') {
       var sheet = getSheet('items');

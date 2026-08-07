@@ -2395,9 +2395,14 @@ itemGrid.addEventListener("click", /*#__PURE__*/function () {
             itemName: item.name,
             stock: item.stock
           });
-          // 누적 대여·수령 카운터 +1 (소모품 수령도 합산)
+          // 누적 대여·수령 카운터 +1 (소모품 수령도 합산).
+          // id 를 붙여 서버가 멱등 처리하도록 한다 — 같은 수령 요청이 두 번
+          // 도달해도(재전송 등) 카운터는 한 번만 오른다.
           apiPostSync({
-            action: 'recordConsume'
+            action: 'recordConsume',
+            id: currentUser.studentId + '|' + item.name + '|' + new Date().toISOString(),
+            studentId: currentUser.studentId,
+            itemName: item.name
           });
           renderItems();
           showSelectionResult("\u2705 ".concat(item.name, " \uC218\uB839 \uC644\uB8CC! \uC18C\uBAA8\uD488\uC740 \uBC18\uB0A9\uD558\uC9C0 \uC54A\uC544\uB3C4 \uB429\uB2C8\uB2E4."), true);
