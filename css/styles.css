@@ -203,6 +203,13 @@ body::before {
     /* 알약 모서리가 카드 끝에 닿아 잘려 보이지 않게 안쪽으로 들인다 */
     padding: 0 6px;
 }
+.step-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
 .step-bar.hidden {
     display: none !important;
 }
@@ -1522,6 +1529,8 @@ body.hanpad-open .user-layout {
     gap: 8px;
 }
 .numpad-key {
+    /* 더블탭 확대를 기다리느라 반응이 늦어지는 것을 막는다 */
+    touch-action: manipulation;
     min-width: 0;
     white-space: nowrap;
     font-family: inherit;
@@ -1574,6 +1583,7 @@ body.hanpad-open .user-layout {
     gap: 7px;
 }
 .hanpad-key {
+    touch-action: manipulation;
     flex: 1;
     /* 최소 폭을 0 으로 풀어야 글자 수가 많은 키도 폭 계산에 끌려가지 않는다 */
     min-width: 0;
@@ -1623,7 +1633,6 @@ body.hanpad-open .user-layout {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
     flex-shrink: 0;
     flex-wrap: wrap;
 }

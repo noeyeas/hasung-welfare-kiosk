@@ -1255,9 +1255,10 @@ var updateStepIndicator = function updateStepIndicator(step) {
   // 정보 입력·물품 선택 단계에서만 노출 (홈·관리자 화면에서는 숨김)
   var inFlow = step === "user" || step === "items";
   if (stepBar) stepBar.classList.toggle("hidden", !inFlow);
-  // 물품 선택 화면에는 툴바에 자체 '뒤로' 가 있으므로 여기 버튼은 감춘다
+  // 물품 선택 화면에는 툴바에 자체 '취소' 가 있으므로 여기 버튼은 감춘다.
+  // 같은 줄 왼쪽을 대여자 정보 칩이 채우므로 자리를 남길 필요가 없어 display 로 없앤다.
   var backBtn = document.getElementById("backToHome");
-  if (backBtn) backBtn.style.visibility = step === "user" ? "" : "hidden";
+  if (backBtn) backBtn.style.display = step === "user" ? "" : "none";
   if (!inFlow) return;
   if (stepItemsLabel) {
     stepItemsLabel.textContent = flowMode === 'return' ? '반납할 물품' : '물품 선택';
@@ -1279,6 +1280,83 @@ var updateStepIndicator = function updateStepIndicator(step) {
 // 화면을 홈으로 되돌리는 일을 막는 데 쓴다.
 var currentStepName = null;
 
+// ============================================================
+// 관리자 콘솔 — 패널 전환 / 검색 / 필터
+// ============================================================
+var adminPanelName = 'dash';
+var adminStockFilter = 'all';
+var adminStockQuery = '';
+var adminLendQuery = '';
+
+function showAdminPanel(name) {
+  adminPanelName = name || 'dash';
+  var nav = document.getElementById('adminNav');
+  if (nav) {
+    var navItems = nav.querySelectorAll('.admin-nav-item[data-panel]');
+    Array.prototype.forEach.call(navItems, function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-panel') === adminPanelName);
+    });
+  }
+  var panels = document.querySelectorAll('#step-admin .admin-panel[data-panel]');
+  Array.prototype.forEach.call(panels, function (p) {
+    p.classList.toggle('is-active', p.getAttribute('data-panel') === adminPanelName);
+  });
+  var sub = document.getElementById('adminCrumbSub');
+  if (sub) {
+    var labels = {
+      dash: '전체 현황 한눈에 보기',
+      lend: '현재 대여 중인 기록',
+      overdue: '반납 기한이 지난 기록',
+      stock: '물품 재고 추가 · 수정 · 삭제'
+    };
+    sub.textContent = adminDateLabel() + ' · ' + (labels[adminPanelName] || '');
+  }
+  if (adminPanelName === 'overdue') renderOverdueData();
+  // 패널을 바꾸면 위에서부터 보이도록
+  var active = document.querySelector('#step-admin .admin-panel.is-active');
+  if (active) active.scrollTop = 0;
+}
+
+// 좁은 화면에서 표가 카드로 바뀔 때 각 칸에 항목 이름을 붙인다.
+// (헤더 행의 th 텍스트를 그대로 td[data-th] 로 복사)
+function labelTableCells(container) {
+  if (!container) return;
+  var tables = container.tagName === 'TABLE' ? [container] : container.querySelectorAll('table');
+  Array.prototype.forEach.call(tables, function (table) {
+    var rows = table.rows;
+    if (!rows || rows.length === 0) return;
+    var heads = rows[0].cells;
+    var labels = [];
+    Array.prototype.forEach.call(heads, function (th) {
+      labels.push((th.textContent || '').trim());
+    });
+    for (var r = 1; r < rows.length; r++) {
+      var cells = rows[r].cells;
+      for (var c = 0; c < cells.length; c++) {
+        if (labels[c]) cells[c].setAttribute('data-th', labels[c]);
+      }
+    }
+  });
+}
+
+function adminDateLabel() {
+  var d = new Date();
+  var days = ['일', '월', '화', '수', '목', '금', '토'];
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' (' + days[d.getDay()] + ')';
+}
+
+// 동기화 상태 표시
+function setAdminSync(state, text) {
+  var dot = document.getElementById('adminSyncDot');
+  var txt = document.getElementById('adminSyncText');
+  if (dot) {
+    dot.classList.remove('is-off', 'is-wait');
+    if (state === 'off') dot.classList.add('is-off');
+    if (state === 'wait') dot.classList.add('is-wait');
+  }
+  if (txt) txt.textContent = text;
+}
+
 var showStep = function showStep(step) {
   currentStepName = step;
   updateStepIndicator(step);
@@ -1291,7 +1369,7 @@ var showStep = function showStep(step) {
   stepUser.classList.add("hidden");
   stepItems.classList.add("hidden");
   stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
-  if (stepOverdue) stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
+  if (stepOverdue) stepOverdue.classList.add("hidden"); // 연체자 섹션(구버전) 숨김
   stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
@@ -1342,27 +1420,14 @@ var showStep = function showStep(step) {
   } else if (step === "admin") {
     // 관리자 모드일 경우
     stepAdmin.classList.remove("hidden");
-    if (adminBorrowedPopup) adminBorrowedPopup.classList.remove("hidden");
-
-    // 관리자 모드일 때 현재 대여 기록 공간 확보
+    // 고정 팝업이 사라졌으므로 .kiosk 여백 조작도 필요 없다. 남아 있으면 잘리므로 원복.
     var kiosk = document.querySelector('.kiosk');
     if (kiosk) {
-      // 왼쪽 고정 패널(#adminBorrowedPopup 700px / #mobileBorrowedPanel 32vw) 만큼 비켜서
-      // 그 위에 겹치지 않게 한다. body 좌우 패딩(>1400: 22px, 이하: 12px)도 폭에서 빼야
-      // 오른쪽으로 넘치지 않는다.
-      if (window.innerWidth > 1400) {
-        kiosk.style.marginLeft = '740px';
-        kiosk.style.width = 'min(1200px, calc(100vw - 784px))';
-      } else {
-        kiosk.style.marginLeft = 'calc(32vw + 8px)';
-        kiosk.style.width = 'calc(68vw - 32px)';
-      }
+      kiosk.style.marginLeft = '';
+      kiosk.style.width = '';
     }
-    // 태블릿 왼쪽 대여현황 패널 표시
-    var mobileBorrowedPanel = document.getElementById("mobileBorrowedPanel");
-    if (mobileBorrowedPanel && window.innerWidth <= 1400) {
-      mobileBorrowedPanel.classList.remove("hidden");
-    }
+    showAdminPanel('dash');
+    setAdminSync('wait', '서버에서 불러오는 중…');
     // 관리자 모드 진입 시 API에서 최신 데이터 가져오기 (전체 PII 포함 → POST + 관리자 인증)
     // pendingSync > 0 이면 아직 서버에 반영 안 된 로컬 변경이 있으므로 덮어쓰지 않음 (데이터 유실 방지)
     // 누적 카운터는 서버가 권위 값이다. 캐시값을 먼저 보여주면 응답이 온 순간
@@ -1414,37 +1479,28 @@ var showStep = function showStep(step) {
         statsTotalBorrow = response.data.stats.totalBorrow;
         saveToLocalCache('kiosk_statsTotalBorrow', statsTotalBorrow);
       }
+      var syncTime = new Date();
+      var hh = String(syncTime.getHours()).padStart(2, '0') + ':' + String(syncTime.getMinutes()).padStart(2, '0');
+      if (ok) {
+        setAdminSync('ok', '서버 연결됨 · ' + hh + ' 동기화');
+      } else {
+        setAdminSync('off', '오프라인 · 저장된 데이터 표시 중');
+      }
       renderAdminData();
     });
     renderAdminData(); // 일단 캐시 데이터로 즉시 렌더링
   } else if (step === "overdue") {
-    // 연체자 화면일 경우
-    if (stepOverdue) stepOverdue.classList.remove("hidden");
-    // 왼쪽 고정 패널이 모두 숨겨지는 화면이므로 관리자 모드에서 준 여백을 원복한다
-    var _kioskOverdue = document.querySelector('.kiosk');
-    if (_kioskOverdue) {
-      _kioskOverdue.style.marginLeft = '';
-      _kioskOverdue.style.width = '';
-    }
-    renderOverdueData(); // 연체자 화면 진입 시 데이터 렌더링
+    // 연체는 이제 관리자 콘솔 안의 패널이다 → 관리자 화면으로 보내고 해당 패널을 연다
+    showStep("admin");
+    showAdminPanel("overdue");
+    return;
   } else if (step === "changelog") {
     // 변경 로그 화면일 경우
     stepChangelog.classList.remove("hidden");
-    var _loginLogPopup = document.getElementById("loginLogPopup");
-    if (_loginLogPopup) _loginLogPopup.classList.remove("hidden");
-
-    // 변경 로그 화면에서도 레이아웃 조정
-    // 1400px 이하에서는 #loginLogPopup 이 relative 로 흐름에 들어가므로(styles.css 미디어쿼리)
-    // 왼쪽에 비워 둘 공간이 없다. 그때 740px 을 주면 화면이 오른쪽으로 밀려 잘린다.
     var _kiosk = document.querySelector('.kiosk');
     if (_kiosk) {
-      if (window.innerWidth > 1400) {
-        _kiosk.style.marginLeft = '740px';
-        _kiosk.style.width = 'min(1200px, calc(100vw - 784px))';
-      } else {
-        _kiosk.style.marginLeft = '';
-        _kiosk.style.width = '';
-      }
+      _kiosk.style.marginLeft = '';
+      _kiosk.style.width = '';
     }
     renderChangeLogView(); // 변경 로그 화면 진입 시 데이터 렌더링
     renderLoginLog(); // 로그인 기록 렌더링
@@ -1505,11 +1561,98 @@ var renderAdminData = function renderAdminData() {
   if (statTotalBorrowed) statTotalBorrowed.textContent = totalBorrowed;
   if (statOverdue) statOverdue.textContent = overdueCount;
 
-  // 1. 재고 현황 테이블 렌더링
-  var stockHtml = "\n                <table id=\"stockTable\" style=\"table-layout: fixed;\">\n                    <colgroup>\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 20%;\">\n                        <col style=\"width: 12%;\">\n                        <col style=\"width: 25%;\">\n                        <col style=\"width: 20%;\">\n                        <col style=\"width: 15%;\">\n                    </colgroup>\n                    <tr><th>\uC21C\uC11C</th><th>\uBB3C\uD488\uBA85</th><th>\uAD6C\uBD84</th><th>\uC7AC\uACE0</th><th>\uC8FC\uC758\uC0AC\uD56D</th><th>\uAD00\uB9AC</th></tr>\n                    ".concat(items.map(function (item, index) {
-    return "\n                        <tr draggable=\"true\" data-index=\"".concat(index, "\" style=\"cursor: move;\">\n                            <td style=\"text-align: center;\">\n                                <button onclick=\"moveItem(").concat(index, ", -1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === 0 ? 'disabled' : '', ">\u25B2</button>\n                                <button onclick=\"moveItem(").concat(index, ", 1)\" style=\"padding: 4px 8px; border: none; background: transparent; color: #9ba3bf; cursor: pointer; font-size: 1rem;\" ").concat(index === items.length - 1 ? 'disabled' : '', ">\u25BC</button>\n                            </td>\n                            <td>").concat(escapeHtml(item.name), "</td>\n                            <td>").concat(escapeHtml(item.type), "</td>\n                            <td style=\"padding: 14px 20px;\">\n                                <div style=\"display: flex; align-items: center; gap: 12px; justify-content: center;\">\n                                    <button onclick=\"updateStock(").concat(index, ", -1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">-</button>\n                                    <span style=\"font-size: 1.05rem;\">").concat(parseInt(item.stock) || 0, "\uAC1C</span>\n                                    <button onclick=\"updateStock(").concat(index, ", 1)\" style=\"padding: 8px 12px; border-radius: 8px; border: 1px solid #2c3242; background: #252836; color: #fff; cursor: pointer; font-size: 1.1rem; font-weight: 600;\">+</button>\n                                </div>\n                            </td>\n                            <td style=\"font-size: 0.8rem; color: #9ba3bf;\">").concat(escapeHtml(item.notice || '-'), "</td>\n                            <td>\n                                <button onclick=\"deleteItem(").concat(index, ")\" style=\"padding: 10px 16px; border-radius: 10px; border: none; background: #ff5c5c; color: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 600;\">\uC0AD\uC81C</button>\n                            </td>\n                        </tr>\n                    ");
-  }).join(''), "\n                </table>\n            ");
+  // 오늘 반납 완료 건수 (변경 로그 기준)
+  var todayReturnCount = changeLog.filter(function (log) {
+    if (!log || log.action !== '물품 반납') return false;
+    var t = new Date(log.time);
+    return t >= todayStart;
+  }).length;
+  var statTodayReturn = document.getElementById('statTodayReturn');
+  if (statTodayReturn) statTodayReturn.textContent = todayReturnCount;
+
+  // 네비 뱃지
+  var navLendBadge = document.getElementById('navLendBadge');
+  var navOverdueBadge = document.getElementById('navOverdueBadge');
+  if (navLendBadge) navLendBadge.textContent = totalBorrowed;
+  if (navOverdueBadge) {
+    navOverdueBadge.textContent = overdueCount;
+    navOverdueBadge.classList.toggle('is-mute', overdueCount === 0);
+  }
+
+  // 재고 부족 경고 배너
+  var lowItems = items.filter(function (it) {
+    return (Number(it.stock) || 0) <= 1;
+  });
+  var adminAlert = document.getElementById('adminAlert');
+  var adminAlertText = document.getElementById('adminAlertText');
+  if (adminAlert && adminAlertText) {
+    if (lowItems.length > 0) {
+      adminAlertText.innerHTML = '<b>재고 부족 ' + lowItems.length + '건</b> · ' + lowItems.map(function (it) {
+        return escapeHtml(it.name) + '(' + (Number(it.stock) || 0) + '개)';
+      }).join(', ') + ' — 보충이 필요합니다.';
+      adminAlert.classList.remove('hidden');
+    } else {
+      adminAlert.classList.add('hidden');
+    }
+  }
+
+  // 최근 활동 피드 (최근 8건)
+  var adminFeed = document.getElementById('adminFeed');
+  if (adminFeed) {
+    var feedIcon = function feedIcon(action) {
+      if (action === '물품 대여') return '📦';
+      if (action === '물품 반납') return '↩';
+      if (action === '소모품 수령') return '🎁';
+      if (action === '재고 변경') return '±';
+      if (action === '물품 추가') return '＋';
+      if (action === '물품 삭제') return '🗑';
+      return '•';
+    };
+    var relTime = function relTime(dateString) {
+      var t = new Date(dateString);
+      var diff = Math.floor((new Date() - t) / 60000);
+      if (diff < 1) return '방금';
+      if (diff < 60) return diff + '분 전';
+      if (diff < 1440) return Math.floor(diff / 60) + '시간 전';
+      return (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+    };
+    var feedLogs = changeLog.slice(-8).reverse();
+    adminFeed.innerHTML = feedLogs.length === 0 ? '<p class="admin-empty">최근 활동이 없습니다.</p>' : feedLogs.map(function (log) {
+      return '<div class="admin-feed-item">' + '<div class="admin-feed-ico">' + feedIcon(log.action) + '</div>' + '<div class="admin-feed-main">' + '<div class="admin-feed-txt">' + escapeHtml(log.details || '') + '</div>' + '<div class="admin-feed-meta">' + escapeHtml(log.action || '') + ' · ' + relTime(log.time) + '</div>' + '</div></div>';
+    }).join('');
+  }
+
+  // 1. 재고 현황 테이블 렌더링 (검색 · 필터 · 상태 태그)
+  var maxStock = items.reduce(function (m, it) {
+    return Math.max(m, Number(it.stock) || 0);
+  }, 0) || 1;
+  var stockRows = items.map(function (item, index) {
+    return { item: item, index: index };
+  }).filter(function (row) {
+    var it = row.item;
+    var stock = Number(it.stock) || 0;
+    if (adminStockFilter === 'low' && stock > 1) return false;
+    if (adminStockFilter !== 'all' && adminStockFilter !== 'low' && it.type !== adminStockFilter) return false;
+    if (adminStockQuery && String(it.name || '').toLowerCase().indexOf(adminStockQuery) === -1) return false;
+    return true;
+  });
+  var stockHtml;
+  if (stockRows.length === 0) {
+    stockHtml = '<p class="admin-empty">조건에 맞는 물품이 없습니다.</p>';
+  } else {
+    stockHtml = '<table id="stockTable"><tr class="is-head"><th>순서</th><th>물품명</th><th>구분</th><th>재고</th><th>상태</th><th>주의사항</th><th>관리</th></tr>' + stockRows.map(function (row) {
+      var item = row.item;
+      var index = row.index;
+      var stock = Number(item.stock) || 0;
+      var tag = stock === 0 ? '<span class="admin-tag is-bad">품절</span>' : stock <= 1 ? '<span class="admin-tag is-bad">부족</span>' : stock <= 4 ? '<span class="admin-tag is-warn">보통</span>' : '<span class="admin-tag is-ok">충분</span>';
+      var barColor = stock <= 1 ? 'var(--danger)' : stock <= 4 ? 'var(--amber)' : 'var(--success)';
+      var pct = Math.max(2, Math.round(stock / maxStock * 100));
+      return '<tr draggable="true" data-index="' + index + '" style="cursor: move;">' + '<td data-th="순서" style="text-align: center; white-space: nowrap;">' + '<button onclick="moveItem(' + index + ', -1)" class="admin-move" ' + (index === 0 ? 'disabled' : '') + '>▲</button>' + '<button onclick="moveItem(' + index + ', 1)" class="admin-move" ' + (index === items.length - 1 ? 'disabled' : '') + '>▼</button>' + '</td>' + '<td data-th="물품명"><strong>' + escapeHtml(item.name) + '</strong></td>' + '<td data-th="구분"><span class="admin-tag is-mute">' + escapeHtml(item.type) + '</span></td>' + '<td data-th="재고">' + '<div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end;">' + '<div class="admin-stepper">' + '<button onclick="updateStock(' + index + ', -1)">−</button>' + '<span>' + stock + '개</span>' + '<button onclick="updateStock(' + index + ', 1)">＋</button>' + '</div>' + '<div class="admin-bar" style="flex: 1; min-width: 60px; max-width: 120px;"><i style="width: ' + pct + '%; background: ' + barColor + ';"></i></div>' + '</div>' + '</td>' + '<td data-th="상태">' + tag + '</td>' + '<td data-th="주의사항" style="font-size: 0.7rem; color: var(--text-3);">' + escapeHtml(item.notice || '-') + '</td>' + '<td data-th="관리"><button onclick="deleteItem(' + index + ')" class="admin-btn is-danger">삭제</button></td>' + '</tr>';
+    }).join('') + '</table>';
+  }
   adminStockTable.innerHTML = stockHtml;
+  labelTableCells(adminStockTable);
+
 
   // 드래그 앤 드롭 이벤트 설정
   var stockTable = document.getElementById('stockTable');
@@ -1572,24 +1715,26 @@ var renderAdminData = function renderAdminData() {
     });
   }
 
-  // 2. 현재 대여 기록 테이블 렌더링
-  if (borrowedRecords.length === 0) {
-    var emptyMsg = "<p style='margin: 0; padding: 10px; color: #b5c0d0;'>현재 대여된 물품이 없습니다.</p>";
-    adminBorrowedTable.innerHTML = emptyMsg;
-    var mobileBorrowedTable2 = document.getElementById("mobileBorrowedTable");
-    if (mobileBorrowedTable2) mobileBorrowedTable2.innerHTML = emptyMsg;
+  // 2. 현재 대여 기록 테이블 렌더링 (검색)
+  var lendRows = borrowedRecords.filter(function (r) {
+    if (!adminLendQuery) return true;
+    var hay = (String(r.name || '') + ' ' + String(r.studentId || '') + ' ' + String(r.itemName || '')).toLowerCase();
+    return hay.indexOf(adminLendQuery) !== -1;
+  });
+  if (lendRows.length === 0) {
+    adminBorrowedTable.innerHTML = '<p class="admin-empty">' + (borrowedRecords.length === 0 ? '현재 대여된 물품이 없습니다.' : '검색 결과가 없습니다.') + '</p>';
     renderLoginLog();
     return;
   }
-  var borrowedHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th></tr>\n                    ".concat(borrowedRecords.map(function (record) {
-    // 18:00 제거
+  var nowForLend = new Date();
+  var borrowedHtml = '<table style="table-layout: auto;"><tr class="is-head"><th>물품</th><th>학번</th><th>이름</th><th>연락처</th><th>반납 기한</th></tr>' + lendRows.map(function (record) {
     var dueLabelWithoutTime = (record.dueLabel || '').replace(' 18:00', '');
-    return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(escapeHtml(record.itemName), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.phone), "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; font-size: 0.9rem;\">").concat(escapeHtml(dueLabelWithoutTime), "</td>\n                        </tr>\n                    ");
-  }).join(''), "\n                </table>\n            ");
+    var isOverdue = new Date(record.dueDate) < nowForLend;
+    return '<tr>' + '<td data-th="물품" style="white-space: nowrap;">' + escapeHtml(record.itemName) + '</td>' + '<td data-th="학번" style="white-space: nowrap;">' + escapeHtml(record.studentId) + '</td>' + '<td data-th="이름" style="white-space: nowrap;"><strong>' + escapeHtml(record.name) + '</strong></td>' + '<td data-th="연락처" style="white-space: nowrap;">' + escapeHtml(record.phone) + '</td>' + '<td data-th="반납 기한" style="white-space: nowrap;"><span class="admin-tag ' + (isOverdue ? 'is-bad' : 'is-warn') + '">' + escapeHtml(dueLabelWithoutTime) + (isOverdue ? ' 연체' : '') + '</span></td>' + '</tr>';
+  }).join('') + '</table>';
   adminBorrowedTable.innerHTML = borrowedHtml;
-  // 모바일 대여현황 패널에도 동일 내용 복사
-  var mobileBorrowedTable = document.getElementById("mobileBorrowedTable");
-  if (mobileBorrowedTable) mobileBorrowedTable.innerHTML = borrowedHtml;
+  labelTableCells(adminBorrowedTable);
+
 
   // 로그인 기록 렌더링
   renderLoginLog();
@@ -1612,7 +1757,7 @@ var renderChangeLog = function renderChangeLog() {
     var date = new Date(dateString);
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
-  var logHtml = "\n                <table>\n                    <tr><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
+  var logHtml = "\n                <table>\n                    <tr class=\"is-head\"><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
     return "\n                        <tr>\n                            <td style=\"font-size: 0.8rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(escapeHtml(log.action), "</td>\n                            <td style=\"font-size: 0.85rem;\">").concat(escapeHtml(log.details), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   adminChangeLog.innerHTML = logHtml;
@@ -1631,10 +1776,11 @@ var renderChangeLogView = function renderChangeLogView() {
     var date = new Date(dateString);
     return "".concat(date.getMonth() + 1, "/").concat(date.getDate(), " ").concat(String(date.getHours()).padStart(2, "0"), ":").concat(String(date.getMinutes()).padStart(2, "0"));
   };
-  var logHtml = "\n                <table>\n                    <tr><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
+  var logHtml = "\n                <table>\n                    <tr class=\"is-head\"><th>\uC2DC\uAC04</th><th>\uC791\uC5C5</th><th>\uC0C1\uC138 \uB0B4\uC5ED</th></tr>\n                    ".concat(recentLogs.map(function (log) {
     return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"color: #9aa9ff; font-weight: 600;\">").concat(escapeHtml(log.action), "</td>\n                            <td style=\"font-size: 0.9rem;\">").concat(escapeHtml(log.details), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   changeLogView.innerHTML = logHtml;
+  labelTableCells(changeLogView);
 };
 
 // 로그인 기록 렌더링 함수
@@ -1657,10 +1803,11 @@ var renderLoginLog = function renderLoginLog() {
     if (s.length === 10 && s.charAt(0) !== '0') s = '0' + s;
     return s;
   };
-  var logHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr><th>\uC2DC\uAC04</th><th>\uC774\uB984</th><th>\uD559\uBC88</th><th>\uC5F0\uB77D\uCC98</th></tr>\n                    ".concat(recentLogs.map(function (log) {
+  var logHtml = "\n                <table style=\"table-layout: auto;\">\n                    <tr class=\"is-head\"><th>\uC2DC\uAC04</th><th>\uC774\uB984</th><th>\uD559\uBC88</th><th>\uC5F0\uB77D\uCC98</th></tr>\n                    ".concat(recentLogs.map(function (log) {
     return "\n                        <tr>\n                            <td style=\"font-size: 0.85rem; white-space: nowrap;\">".concat(formatTime(log.time), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(log.studentId), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(formatPhone(log.phone)), "</td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   loginLogTable.innerHTML = logHtml;
+  labelTableCells(loginLogTable);
   // 데스크탑 팝업에도 동일 내용 복사
   var loginLogTable2 = document.getElementById("loginLogTable2");
   if (loginLogTable2) loginLogTable2.innerHTML = logHtml;
@@ -1691,7 +1838,7 @@ var renderOverdueData = function renderOverdueData() {
     var days = calculateOverdueDays(dueDate);
     return days * 2000;
   };
-  var overdueHtml = "\n                <table style=\"table-layout: auto; min-width: 100%;\">\n                    <colgroup>\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 16%;\">\n                    </colgroup>\n                    <tr><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th><th>\uC5F0\uCCB4 \uC77C\uC218</th><th>\uC5F0\uCCB4 \uBC8C\uAE08</th><th>\uAD00\uB9AC</th></tr>\n                    ".concat(overdueRecords.map(function (record) {
+  var overdueHtml = "\n                <table style=\"table-layout: auto; min-width: 100%;\">\n                    <colgroup>\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 10%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 8%;\">\n                        <col style=\"width: 15%;\">\n                        <col style=\"width: 16%;\">\n                    </colgroup>\n                    <tr class=\"is-head\"><th>\uBB3C\uD488</th><th>\uD559\uBC88</th><th>\uC774\uB984</th><th>\uC5F0\uB77D\uCC98</th><th>\uBC18\uB0A9 \uAE30\uD55C</th><th>\uC5F0\uCCB4 \uC77C\uC218</th><th>\uC5F0\uCCB4 \uBC8C\uAE08</th><th>\uAD00\uB9AC</th></tr>\n                    ".concat(overdueRecords.map(function (record) {
     var overdueDays = calculateOverdueDays(record.dueDate);
     var fine = calculateFine(record.dueDate);
     // borrowedRecords에서 해당 기록의 인덱스 찾기
@@ -1705,6 +1852,7 @@ var renderOverdueData = function renderOverdueData() {
     return "\n                        <tr>\n                            <td style=\"white-space: nowrap;\">".concat(escapeHtml(record.itemName), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(String(record.studentId)), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.name), "</td>\n                            <td style=\"white-space: nowrap;\">").concat(escapeHtml(record.phone), "</td>\n                            <td style=\"color: #ff8f8f; white-space: nowrap; min-width: 120px;\">").concat(escapeHtml(record.dueLabel), "</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 80px;\">").concat(parseInt(overdueDays) || 0, "\uC77C</td>\n                            <td style=\"color: #ff8f8f; font-weight: 600; white-space: nowrap; min-width: 100px;\">").concat(parseInt(fine) ? fine.toLocaleString() : '0', "\uC6D0</td>\n                            <td style=\"white-space: nowrap;\">\n                                <button onclick=\"forceReturn('").concat(safeStudentId, "', '").concat(safeItemName, "', '").concat(safeDueDate, "')\" style=\"padding: 8px 16px; border-radius: 10px; border: none; background: #4e5fe5; color: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600;\">\uAC15\uC81C \uBC18\uB0A9</button>\n                            </td>\n                        </tr>\n                    ");
   }).join(''), "\n                </table>\n            ");
   overdueTable.innerHTML = overdueHtml;
+  labelTableCells(overdueTable);
 };
 var showSelectionResult = function showSelectionResult(message) {
   var isSuccess = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
@@ -2716,16 +2864,84 @@ var changeLogPanel = document.getElementById("changeLogPanel");
 var loginLogPanel = document.getElementById("loginLogPanel");
 if (tabChangeLog && tabLoginLog) {
   tabChangeLog.addEventListener("click", function () {
-    changeLogPanel.classList.remove("hidden");
-    loginLogPanel.classList.add("hidden");
-    tabChangeLog.style.background = "#2a3044";
-    tabLoginLog.style.background = "transparent";
+    changeLogPanel.classList.add("is-active");
+    loginLogPanel.classList.remove("is-active");
+    tabChangeLog.classList.add("is-active");
+    tabLoginLog.classList.remove("is-active");
   });
   tabLoginLog.addEventListener("click", function () {
-    changeLogPanel.classList.add("hidden");
-    loginLogPanel.classList.remove("hidden");
-    tabLoginLog.style.background = "#2a3044";
-    tabChangeLog.style.background = "transparent";
+    changeLogPanel.classList.remove("is-active");
+    loginLogPanel.classList.add("is-active");
+    tabLoginLog.classList.add("is-active");
+    tabChangeLog.classList.remove("is-active");
+  });
+}
+
+// ── 관리자 콘솔: 네비 · 검색 · 필터 ──────────────────────────
+var adminNavEl = document.getElementById("adminNav");
+if (adminNavEl) {
+  adminNavEl.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".admin-nav-item[data-panel]") : null;
+    if (btn) showAdminPanel(btn.getAttribute("data-panel"));
+  });
+}
+
+// 경고 배너 → 재고 화면 이동
+var adminAlertEl = document.getElementById("adminAlert");
+if (adminAlertEl) {
+  adminAlertEl.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("[data-goto]") : null;
+    if (btn) showAdminPanel(btn.getAttribute("data-goto"));
+  });
+}
+
+// 새로고침
+var adminRefreshBtn = document.getElementById("adminRefresh");
+if (adminRefreshBtn) {
+  adminRefreshBtn.addEventListener("click", function () {
+    var keep = adminPanelName;
+    showStep("admin");
+    showAdminPanel(keep);
+  });
+}
+
+// 재고 검색 / 필터
+var stockSearchEl = document.getElementById("stockSearch");
+if (stockSearchEl) {
+  stockSearchEl.addEventListener("input", function () {
+    adminStockQuery = String(stockSearchEl.value || '').trim().toLowerCase();
+    renderAdminData();
+  });
+}
+var stockChips = document.querySelectorAll("[data-stock-filter]");
+Array.prototype.forEach.call(stockChips, function (chip) {
+  chip.addEventListener("click", function () {
+    adminStockFilter = chip.getAttribute("data-stock-filter");
+    Array.prototype.forEach.call(stockChips, function (c) {
+      c.classList.toggle("is-on", c === chip);
+    });
+    renderAdminData();
+  });
+});
+
+// 대여 현황 검색
+var lendSearchEl = document.getElementById("lendSearch");
+if (lendSearchEl) {
+  lendSearchEl.addEventListener("input", function () {
+    adminLendQuery = String(lendSearchEl.value || '').trim().toLowerCase();
+    renderAdminData();
+  });
+}
+
+// 새 물품 추가 폼 열고 닫기
+var toggleAddItemBtn = document.getElementById("toggleAddItem");
+var addItemCard = document.getElementById("addItemCard");
+if (toggleAddItemBtn && addItemCard) {
+  toggleAddItemBtn.addEventListener("click", function () {
+    var willOpen = addItemCard.classList.contains("hidden");
+    addItemCard.classList.toggle("hidden", !willOpen);
+    toggleAddItemBtn.textContent = willOpen ? "✕ 닫기" : "＋ 물품 추가";
+    if (willOpen) addItemCard.scrollIntoView({ block: "nearest" });
   });
 }
 
@@ -3304,11 +3520,11 @@ var applyNumPadKey = function applyNumPadKey(key) {
 };
 
 if (numPad) {
-  // mousedown/touchstart 기본 동작을 막아야 입력칸이 포커스를 잃지 않는다
-  numPad.addEventListener("mousedown", function (e) {
+  // pointerdown 에서 바로 입력한다. click 은 터치에서 touchend 이후에야
+  // 오기 때문에 누른 느낌과 글자가 찍히는 시점이 어긋나 느리게 보인다.
+  // 기본 동작을 막아야 입력칸이 포커스를 잃지 않고, click 도 뒤따르지 않는다.
+  numPad.addEventListener("pointerdown", function (e) {
     e.preventDefault();
-  });
-  numPad.addEventListener("click", function (e) {
     var keyBtn = e.target.closest ? e.target.closest(".numpad-key") : null;
     if (!keyBtn) return;
     applyNumPadKey(keyBtn.getAttribute("data-key"));
@@ -3533,12 +3749,16 @@ var openHanPad = function openHanPad(input) {
 };
 
 if (hanPad) {
-  hanPad.addEventListener("mousedown", function (e) {
+  // 숫자 키패드와 같은 이유로 pointerdown 에서 바로 처리한다
+  hanPad.addEventListener("pointerdown", function (e) {
     e.preventDefault();
-  });
-  hanPad.addEventListener("click", function (e) {
     var key = e.target.closest ? e.target.closest(".hanpad-key") : null;
-    if (!key || !hanTarget) return;
+    if (!key) return;
+    if (key === hanShiftBtn) {
+      setHanShift(!hanShiftOn);
+      return;
+    }
+    if (!hanTarget) return;
     var action = key.getAttribute("data-han");
     if (action === "back") {
       hanBackspace();
@@ -3570,11 +3790,6 @@ if (hanPad) {
     pushJamo(hanShiftOn && shifted ? shifted : jamo);
     // 쌍자음은 한 번 쓰면 풀린다 (물리 키보드 Shift 와 같은 동작)
     if (hanShiftOn) setHanShift(false);
-  });
-}
-if (hanShiftBtn) {
-  hanShiftBtn.addEventListener("click", function () {
-    setHanShift(!hanShiftOn);
   });
 }
 if (hanPadCloseBtn) {

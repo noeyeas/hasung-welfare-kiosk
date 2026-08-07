@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=96">
+    <link rel="stylesheet" href="css/styles.css?v=97">
     <link rel="stylesheet" href="css/admin-console.css?v=1">
 </head>
 <body>
@@ -45,7 +45,11 @@
 
         <!-- 상단 줄: 왼쪽 뒤로 버튼 / 오른쪽 진행 단계 -->
         <div id="stepBar" class="step-bar hidden">
-            <button type="button" id="backToHome" class="ghost-btn">← 뒤로</button>
+            <div class="step-bar-left">
+                <button type="button" id="backToHome" class="ghost-btn">← 뒤로</button>
+                <!-- 대여자 정보 — 진행 단계와 같은 줄 왼쪽에 둔다 -->
+                <div id="userChips" class="user-chips"></div>
+            </div>
             <div id="stepIndicator" class="step-indicator">
                 <div class="step-dot active" data-step="user"><span class="step-num">1</span>정보 입력</div>
                 <div class="step-line"></div>
@@ -367,9 +371,6 @@
         </section>
 
         <section id="step-items" class="hidden">
-            <!-- 대여자 정보 — 툴바보다 위, 자체 줄에 둔다 -->
-            <div id="userChips" class="user-chips"></div>
-
             <div class="items-toolbar">
                 <div class="filter-row" id="filterRow">
                     <button id="filterAll" class="filter-btn active" data-filter="all">전체</button>
@@ -453,6 +454,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
     <!-- JavaScript 파일 분리 -->
-    <script src="js/script.js?v=99"></script>
+    <script src="js/script.js?v=98"></script>
 </body>
 </html>
