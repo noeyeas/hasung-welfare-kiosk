@@ -211,6 +211,8 @@ body::before {
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    /* .step-bar 가 space-between 이라 오른쪽 여백을 주면 왼쪽으로 밀린다 */
+    margin-right: 40px;
 }
 .step-dot {
     display: flex;
@@ -1647,6 +1649,9 @@ body.hanpad-open .user-layout {
     }
     .step-bar {
         margin-bottom: 8px;
+    }
+    .step-indicator {
+        margin-right: 20px;
     }
     .step-head {
         margin-bottom: 8px;
