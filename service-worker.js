@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hasung-kiosk-v23';
+const CACHE_NAME = 'hasung-kiosk-v24';
 const urlsToCache = [
   './',
   './index.html',
@@ -13,13 +13,17 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('캐시 열기');
-        return cache.addAll(urlsToCache.map(url => new Request(url, { cache: 'reload' })))
-          .catch(err => {
-            console.log('일부 파일 캐시 실패:', err);
-            // 일부 파일이 실패해도 계속 진행
-            return Promise.resolve();
-          });
+        // cache.addAll() 은 원자적이라 URL 하나만 실패해도 전체가 취소된다.
+        // 기존 코드는 그 실패를 삼키고 설치를 성공 처리해, 캐시가 완전히 빈 채로
+        // 오프라인에 진입하는 상황을 만들 수 있었다. 따라서 한 건씩 개별로 담는다.
+        return Promise.all(
+          urlsToCache.map((url) => {
+            return cache.add(new Request(url, { cache: 'reload' }))
+              .catch((err) => {
+                console.warn('캐시 실패:', url, err);
+              });
+          })
+        );
       })
   );
   // 즉시 활성화하여 새 버전 사용
@@ -96,10 +100,13 @@ self.addEventListener('fetch', (event) => {
             if (response) {
               return response;
             }
-            // 캐시에도 없으면 오프라인 페이지 반환
-            if (event.request.destination === 'document') {
-              return caches.match('./index.html');
+            // 정확히 일치하는 캐시가 없을 때, 문서 요청이면 시작 페이지로 대체한다.
+            // '/hasung-welfare-kiosk/?mode=admin' 처럼 쿼리가 붙은 주소나
+            // 디렉터리 주소('./')로 들어온 경우를 모두 받아내기 위함이다.
+            if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+              return caches.match('./index.html').then((page) => page || caches.match('./'));
             }
+            return undefined;
           });
       })
   );
