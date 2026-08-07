@@ -295,8 +295,8 @@ p {
     margin-bottom: 10px;
 }
 .step-head {
-    /* 가운데가 아니라 왼쪽 끝(폼과 같은 선)에 맞춘다 */
-    margin: 0 0 26px;
+    /* 왼쪽 끝에 붙이지 않고 조금 들여쓴다 — 폼과 같은 선을 유지한다 */
+    margin: 0 0 26px 48px;
     max-width: 640px;
     width: 100%;
 }
@@ -518,7 +518,7 @@ select {
     justify-content: flex-start;
     /* 완전히 위에 붙으면 답답해 보여 숨 쉴 공간만 준다.
        가운데 정렬은 남는 공간의 절반이 통째로 끼어들어 너무 벌어졌다. */
-    padding-top: 40px;
+    padding-top: 72px;
     overflow-y: auto;
 }
 /* 안내 문구가 길어 줄바꿈될 때 가로로 넘치지 않도록 */
@@ -531,8 +531,8 @@ select {
     flex: none;
     gap: 18px;
     max-width: 520px;
-    /* 제목·뒤로 버튼과 같은 왼쪽 선에 맞춘다 */
-    margin: 0;
+    /* .step-head 와 같은 들여쓰기 — 두 요소의 왼쪽 선을 맞춘다 */
+    margin: 0 0 0 48px;
     width: 100%;
 }
 .field {
@@ -1638,6 +1638,12 @@ body.hanpad-open .user-layout {
 @media (max-height: 820px) {
     #step-user {
         padding-top: 8px;
+    }
+    .step-head {
+        margin-left: 24px;
+    }
+    #step-user form {
+        margin-left: 24px;
     }
     .step-bar {
         margin-bottom: 8px;
