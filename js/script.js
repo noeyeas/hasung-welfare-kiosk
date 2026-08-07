@@ -1291,7 +1291,7 @@ var showStep = function showStep(step) {
   stepUser.classList.add("hidden");
   stepItems.classList.add("hidden");
   stepAdmin.classList.add("hidden"); // 관리자 섹션 숨김 추가
-  stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
+  if (stepOverdue) stepOverdue.classList.add("hidden"); // 연체자 섹션 숨김 추가
   stepChangelog.classList.add("hidden"); // 변경 로그 섹션 숨김 추가
   if (logBoard) logBoard.classList.add("hidden");
   if (adminBorrowedPopup) adminBorrowedPopup.classList.add("hidden");
@@ -1419,7 +1419,7 @@ var showStep = function showStep(step) {
     renderAdminData(); // 일단 캐시 데이터로 즉시 렌더링
   } else if (step === "overdue") {
     // 연체자 화면일 경우
-    stepOverdue.classList.remove("hidden");
+    if (stepOverdue) stepOverdue.classList.remove("hidden");
     // 왼쪽 고정 패널이 모두 숨겨지는 화면이므로 관리자 모드에서 준 여백을 원복한다
     var _kioskOverdue = document.querySelector('.kiosk');
     if (_kioskOverdue) {
