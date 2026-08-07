@@ -193,6 +193,8 @@ body::before {
 .step-indicator {
     display: flex;
     align-items: center;
+    /* 제목·폼이 왼쪽 선에 맞으므로 단계 표시는 오른쪽으로 보낸다 */
+    justify-content: flex-end;
     gap: 10px;
     flex-shrink: 0;
     margin-bottom: 22px;
