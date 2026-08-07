@@ -365,29 +365,6 @@ tr.is-editing td { border-bottom-color: var(--primary-line); }
     white-space: nowrap;
 }
 
-/* ── 최근 활동 피드 ── */
-.admin-feed { max-height: 340px; overflow-y: auto; }
-.admin-feed-item {
-    display: flex;
-    gap: 11px;
-    padding: 11px 16px;
-    border-bottom: 1px solid var(--line-soft);
-}
-.admin-feed-item:last-child { border-bottom: 0; }
-.admin-feed-ico {
-    flex: 0 0 auto;
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border-radius: 9px;
-    border: 1px solid var(--line);
-    background: var(--surface-3);
-    font-size: 0.7rem;
-}
-.admin-feed-main { min-width: 0; flex: 1; }
-.admin-feed-txt { font-size: 0.72rem; color: var(--text); }
-.admin-feed-meta { margin-top: 3px; font-size: 0.62rem; color: var(--text-3); }
 .admin-empty { margin: 0; padding: 18px 16px; color: var(--text-3); font-size: 0.74rem; }
 
 /* ── 기존 styles.css 규칙 보정 ── */

@@ -1224,32 +1224,6 @@ var renderAdminData = function renderAdminData() {
     }
   }
 
-  // 최근 활동 피드 (최근 8건)
-  var adminFeed = document.getElementById('adminFeed');
-  if (adminFeed) {
-    var feedIcon = function feedIcon(action) {
-      if (action === '물품 대여') return '📦';
-      if (action === '물품 반납') return '↩';
-      if (action === '소모품 수령') return '🎁';
-      if (action === '재고 변경') return '±';
-      if (action === '물품 추가') return '＋';
-      if (action === '물품 삭제') return '🗑';
-      return '•';
-    };
-    var relTime = function relTime(dateString) {
-      var t = new Date(dateString);
-      var diff = Math.floor((new Date() - t) / 60000);
-      if (diff < 1) return '방금';
-      if (diff < 60) return diff + '분 전';
-      if (diff < 1440) return Math.floor(diff / 60) + '시간 전';
-      return (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
-    };
-    var feedLogs = changeLog.slice(-8).reverse();
-    adminFeed.innerHTML = feedLogs.length === 0 ? '<p class="admin-empty">최근 활동이 없습니다.</p>' : feedLogs.map(function (log) {
-      return '<div class="admin-feed-item">' + '<div class="admin-feed-ico">' + feedIcon(log.action) + '</div>' + '<div class="admin-feed-main">' + '<div class="admin-feed-txt">' + escapeHtml(log.details || '') + '</div>' + '<div class="admin-feed-meta">' + escapeHtml(log.action || '') + ' · ' + relTime(log.time) + '</div>' + '</div></div>';
-    }).join('');
-  }
-
   // 1. 재고 현황 테이블 렌더링 (검색 · 필터 · 상태 태그 · 인라인 수정)
   var stockRows = items.map(function (item, index) {
     return { item: item, index: index };
