@@ -280,8 +280,9 @@ p {
     margin-bottom: 10px;
 }
 .step-head {
-    margin: 0 auto 26px;
-    max-width: 520px;
+    /* 가운데가 아니라 왼쪽 끝(폼과 같은 선)에 맞춘다 */
+    margin: 0 0 26px;
+    max-width: 640px;
     width: 100%;
 }
 .step-head .ghost-btn {
@@ -518,7 +519,8 @@ select {
     flex: none;
     gap: 18px;
     max-width: 520px;
-    margin: 0 auto;
+    /* 제목·뒤로 버튼과 같은 왼쪽 선에 맞춘다 */
+    margin: 0;
     width: 100%;
 }
 .field {
@@ -1449,11 +1451,8 @@ body.hanpad-open .user-layout {
     grid-template-columns: minmax(0, 1fr) 520px;
 }
 
-/* 화면에 고정하지 않고 흐름 안에 둔다 — 입력칸이나 제출 버튼을 가리지 않는다.
-   폼이 길어 스크롤될 때도 따라오도록 sticky 로 붙여 둔다. */
+/* 화면에 고정하지 않고 흐름 안에 둔다 — 입력칸이나 제출 버튼을 가리지 않는다. */
 .numpad {
-    position: sticky;
-    top: 0;
     padding: 14px;
     background: var(--surface-2);
     border: 1px solid var(--line);
@@ -1519,16 +1518,13 @@ body.hanpad-open .user-layout {
     body.hanpad-open .user-layout {
         grid-template-columns: 1fr;
     }
-    .numpad,
-    .hanpad {
+    .pad-column {
         position: static;
     }
 }
 
 /* 한글 키패드 (두벌식) */
 .hanpad {
-    position: sticky;
-    top: 0;
     padding: 14px;
     background: var(--surface-2);
     border: 1px solid var(--line);
@@ -1659,4 +1655,19 @@ body.hanpad-open .user-layout {
     .hanpad-key {
         min-height: 44px;
     }
+}
+
+/* 오른쪽 열 — 키패드와 제출 버튼을 세로로 묶는다.
+   .user-layout 이 2단 그리드이므로 오른쪽 요소들은 이 한 덩어리여야 한다. */
+.pad-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+}
+/* 제출 버튼은 키패드 폭에 맞춰 아래에 붙는다 */
+.pad-column .btn-primary {
+    width: 100%;
+    margin: 0;
 }

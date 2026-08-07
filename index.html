@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS 파일 분리 -->
-    <link rel="stylesheet" href="css/styles.css?v=86">
+    <link rel="stylesheet" href="css/styles.css?v=87">
 </head>
 <body>
     <!-- 상단 헤더 -->
@@ -222,8 +222,10 @@
                     </label>
                     <div id="privacyError" class="error" aria-live="polite"></div>
                 </div>
-                <button class="btn-primary" type="submit" id="submitBtn">다음 단계 →</button>
             </form>
+
+        <!-- 오른쪽 열: 키패드 + 제출 버튼 -->
+        <div class="pad-column">
 
         <!-- 숫자 키패드 — 학번·전화번호 칸을 누르면 폼 옆에 나타난다 -->
         <div id="numPad" class="numpad hidden" role="group" aria-label="숫자 키패드">
@@ -291,6 +293,10 @@
                     <button type="button" class="hanpad-key is-muted is-wide" id="hanLangToggle" data-han="lang">한/영</button>
                 </div>
             </div>
+        </div>
+
+            <!-- form 밖에 있지만 form 속성으로 #user-form 을 제출한다 -->
+            <button class="btn-primary" type="submit" id="submitBtn" form="user-form">다음 단계 →</button>
         </div>
             </div>
         </section>
