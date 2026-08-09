@@ -327,6 +327,23 @@ function writeStockCell(itemName, mutate) {
   return null;
 }
 
+// 현재 재고만 읽는다 (기록하지 않음). 물품을 못 찾으면 null.
+function getStock(itemName) {
+  var sheet = getSheet('items');
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return null;
+  var headers = data[0];
+  var nameCol = headers.indexOf('name');
+  var stockCol = headers.indexOf('stock');
+  if (nameCol === -1 || stockCol === -1) return null;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][nameCol]) === String(itemName)) {
+      return Number(data[i][stockCol]) || 0;
+    }
+  }
+  return null;
+}
+
 function adjustStock(itemName, delta) {
   return writeStockCell(itemName, function (current) {
     return current + delta;
@@ -520,7 +537,18 @@ function handlePost(action, params) {
     });
     if (kept.length === ditems.length) return { success: false, error: 'Item not found' };
     arrayToSheet(dsheet, kept, ITEM_HEADERS);
-    return { success: true };
+
+    // 물품을 지우면 그 물품의 대여 기록이 고아로 남는다. 그대로 두면 대여자는
+    // (1인 1물품 규칙 때문에) 새 대여도 막히고, 반납 목록엔 삭제된 물품이 안 떠
+    // 반납도 못 하는 상태에 갇힌다. 그래서 대여 기록도 함께 정리한다.
+    var delBSheet = getSheet('borrowed');
+    var delBRows = sheetToArray(delBSheet);
+    var keptBorrowed = delBRows.filter(function (r) {
+      return String(r.itemName) !== delName;
+    });
+    var releasedBorrowed = delBRows.length - keptBorrowed.length;
+    if (releasedBorrowed > 0) arrayToSheet(delBSheet, keptBorrowed, BORROWED_HEADERS);
+    return { success: true, releasedBorrowed: releasedBorrowed };
   }
 
   // 순서만 재배치한다. 재고 등 값은 시트의 현재 값을 그대로 유지하므로
@@ -591,6 +619,13 @@ function handlePost(action, params) {
     if (held) {
       return { success: false, error: 'ALREADY_BORROWED', heldItem: held };
     }
+    // 재고 확인은 서버가 최종 판단한다. 클라이언트는 stock<=0 을 막지만,
+    // 오래된 화면·동시 요청은 서버만이 정확히 알 수 있다. 이 검사가 없으면
+    // 재고 1개를 두 사람이 동시에 대여해 재고 없이 빌린 기록이 생긴다.
+    var curStock = getStock(params.record.itemName);
+    if (curStock === null) return { success: false, error: 'Item not found' };
+    if (curStock <= 0) return { success: false, error: 'OUT_OF_STOCK' };
+
     var rec = params.record;
     if (!rec.id) {
       rec.id = String(rec.studentId) + '|' + String(rec.itemName) + '|' + String(rec.borrowedAt);

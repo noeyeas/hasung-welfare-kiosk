@@ -3093,9 +3093,19 @@ window.deleteItem = async function (index) {
 
   items.splice(index, 1);
   adminEditIndex = -1; // 삭제로 인덱스가 밀리므로 수정 모드 해제
+  // 서버가 이 물품의 대여 기록도 함께 정리하므로(deleteItem), 로컬 메모리도 맞춘다.
+  // 남겨 두면 대여자가 1인 1물품 규칙에 걸려 새 대여·반납 모두 막힌다.
+  var releasedBorrowed = 0;
+  if (Array.isArray(borrowedRecords)) {
+    var beforeDel = borrowedRecords.length;
+    borrowedRecords = borrowedRecords.filter(function (r) {
+      return !(r && String(r.itemName) === String(item.name));
+    });
+    releasedBorrowed = beforeDel - borrowedRecords.length;
+  }
   saveLocalCache();
-  syncDeleteItem(item.name); // 이 물품 한 건만 서버에서 제거
-  addChangeLog('물품 삭제', item.name + ' 삭제됨');
+  syncDeleteItem(item.name); // 이 물품 한 건만 서버에서 제거 (대여 기록도 서버가 정리)
+  addChangeLog('물품 삭제', item.name + ' 삭제됨' + (releasedBorrowed > 0 ? ' (대여 기록 ' + releasedBorrowed + '건 함께 정리)' : ''));
   renderAdminData();
   renderItems();
   showConfirm({
