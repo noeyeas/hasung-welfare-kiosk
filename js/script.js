@@ -231,6 +231,15 @@ function hasPendingWrites() {
 }
 
 function queueWrite(data, options) {
+  // 같은 대여 요청이 큐에 두 번 들어가면 서버에도 두 번 도착한다.
+  // 서버가 (studentId, itemName) 으로 멱등 처리하긴 하지만, 애초에 보내지 않는다.
+  if (data && data.action === 'addBorrowed' && data.record) {
+    var newKey = borrowKey(data.record);
+    var queued = pendingWrites.some(function (e) {
+      return e.data && e.data.action === 'addBorrowed' && e.data.record && borrowKey(e.data.record) === newKey;
+    });
+    if (queued) return;
+  }
   pendingWrites.push({
     data: data,
     needsAdmin: !!(options && options.needsAdmin),
@@ -302,8 +311,32 @@ function dropHeadPendingWrite(reason) {
   var entry = pendingWrites.shift();
   pendingDropped++;
   console.error('서버 반영 실패로 요청을 버립니다:', entry && entry.data && entry.data.action, reason);
+  // 서버가 대여를 거절했는데 화면에만 대여 중으로 남으면, 사용자는 빌리지도 않은
+  // 물품을 반납해야 재고가 맞는 이상한 상태가 된다. 화면을 서버 쪽으로 되돌린다.
+  if (entry && entry.data && entry.data.action === 'addBorrowed' && entry.data.record) {
+    rollbackLocalBorrow(entry.data.record, reason);
+  }
   savePendingWrites();
   flushPendingWrites();
+}
+
+// 서버에 반영되지 못한 로컬 대여를 취소 (기록 제거 + 재고 복구 + 안내)
+function rollbackLocalBorrow(record, reason) {
+  var key = borrowKey(record);
+  var before = borrowedRecords.length;
+  borrowedRecords = borrowedRecords.filter(function (r) {
+    return borrowKey(r) !== key;
+  });
+  if (borrowedRecords.length === before) return;
+  var item = items.filter(function (it) {
+    return it && it.name === record.itemName;
+  })[0];
+  if (item) item.stock = (Number(item.stock) || 0) + 1;
+  saveLocalCache();
+  if (typeof renderItems === 'function') renderItems();
+  if (typeof showSelectionResult === 'function') {
+    showSelectionResult(reason === 'ALREADY_BORROWED' ? '⚠️ 한 번에 한 개의 물품만 대여할 수 있습니다.\n이미 대여 중인 물품을 먼저 반납해주세요.' : '⚠️ 대여가 서버에 저장되지 않아 취소되었습니다. 다시 시도해주세요.', false);
+  }
 }
 
 // 새로고침·재시작 뒤에도 못 보낸 변경을 이어서 보낸다.
@@ -802,7 +835,8 @@ var loadData = function loadData() {
         loadedItems.forEach(function (it) {
           it.stock = Number(it.stock) || 0;
         });
-        var loadedBorrowed = apiData.borrowed || [];
+        // 과거에 중복 기록된 행이 시트에 남아 있어도 화면·판정에서는 한 건으로 본다
+        var loadedBorrowed = dedupBorrowed(apiData.borrowed || []);
 
         // localStorage 캐시에 저장 (개인정보는 담지 않는다)
         saveToLocalCache('kiosk_items', loadedItems);
@@ -828,7 +862,7 @@ var loadData = function loadData() {
           });
           resolve({
             items: cachedItems,
-            borrowedRecords: cachedBorrowed || []
+            borrowedRecords: dedupBorrowed(cachedBorrowed || [])
           });
         } else {
           resolve({
@@ -1851,7 +1885,7 @@ async function initApp() {
       const savedItems = loadFromLocalCache('kiosk_items');
       if (savedItems) items = savedItems;
       const savedBorrowed = loadFromLocalCache('kiosk_borrowed');
-      if (savedBorrowed) borrowedRecords = savedBorrowed;
+      if (savedBorrowed) borrowedRecords = dedupBorrowed(savedBorrowed);
       const savedChangeLog = loadFromLocalCache('kiosk_changeLog');
       if (savedChangeLog) changeLog = savedChangeLog;
       console.log('Fallback: Data loaded from localStorage');
@@ -2118,15 +2152,21 @@ on(itemGrid, "click", /*#__PURE__*/function () {
           showSelectionResult("\u26A0\uFE0F ".concat(item.name, " \uC7AC\uACE0\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4. \uB2E4\uB978 \uBB3C\uD488\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694."), false);
           return _context16.a(2);
         case 5:
-          // 중복 대여 방지: 이미 빌린 물품인지 확인
-          alreadyBorrowed = borrowedRecords.some(function (record) {
-            return String(record.studentId) === String(currentUser.studentId) && record.itemName === item.name;
-          });
+          // 1인 1물품: 이미 대여 중인 물품이 하나라도 있으면 추가 대여를 막는다.
+          // (같은 물품이든 다른 물품이든 먼저 반납해야 다시 빌릴 수 있다)
+          alreadyBorrowed = borrowedRecords.filter(function (record) {
+            return String(record.studentId) === String(currentUser.studentId);
+          })[0];
           if (!alreadyBorrowed) {
             _context16.n = 6;
             break;
           }
-          showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
+          if (alreadyBorrowed.itemName === item.name) {
+            showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
+          } else {
+            // \uD55C \uBC88\uC5D0 \uD55C \uAC1C\uB9CC \uB300\uC5EC\uD560 \uC218 \uC788\uB2E4\uB294 \uADDC\uCE59\uC744 \uC774\uC720\uC640 \uD568\uAED8 \uC54C\uB9B0\uB2E4
+            showSelectionResult("\u26A0\uFE0F \uD55C \uBC88\uC5D0 \uD55C \uAC1C\uC758 \uBB3C\uD488\uB9CC \uB300\uC5EC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.\n\uD604\uC7AC ".concat(alreadyBorrowed.itemName, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4. \uBA3C\uC800 \uBC18\uB0A9\uD574\uC8FC\uC138\uC694."), false);
+          }
           return _context16.a(2);
         case 6:
           // 주의사항 메시지 구성. 예전에는 떠 있는 정보 카드에 상시 표시했지만
@@ -2169,6 +2209,7 @@ on(itemGrid, "click", /*#__PURE__*/function () {
           // id 는 로그/정렬용 (중복 판정에는 사용하지 않음 - 판정은 borrowKey)
           borrowRecord.id = borrowRecord.studentId + '|' + borrowRecord.itemName + '|' + borrowRecord.borrowedAt;
           borrowedRecords.push(borrowRecord);
+          borrowedRecords = dedupBorrowed(borrowedRecords); // 어떤 경로로도 같은 기록이 두 번 남지 않게
           item.stock = (Number(item.stock) || 0) - 1;
           dueLabel = (currentDueInfo || getDueInfo()).label;
           saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)

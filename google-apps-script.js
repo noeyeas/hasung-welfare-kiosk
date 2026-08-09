@@ -574,7 +574,22 @@ function handlePost(action, params) {
     });
     if (exists) {
       // 멱등: 같은 (studentId, itemName) 미반납 레코드가 이미 있으면 추가하지 않음
+      // (응답을 못 받아 재시도로 같은 요청이 두 번 도착해도 기록이 복제되지 않는다)
       return { success: true, duplicate: true };
+    }
+    // 1인 1물품: 이미 반납하지 않은 다른 물품이 있으면 추가 대여를 막는다.
+    // 클라이언트에서도 막지만, 다른 기기·오래된 화면에서 오는 요청은
+    // 서버만이 최종적으로 판단할 수 있다.
+    var studentSid = String(params.record.studentId);
+    var held = null;
+    for (var bi = 0; bi < bdata.length; bi++) {
+      if (String(bdata[bi].studentId) === studentSid) {
+        held = String(bdata[bi].itemName);
+        break;
+      }
+    }
+    if (held) {
+      return { success: false, error: 'ALREADY_BORROWED', heldItem: held };
     }
     var rec = params.record;
     if (!rec.id) {
