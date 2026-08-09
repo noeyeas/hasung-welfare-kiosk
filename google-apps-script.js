@@ -6,8 +6,17 @@
 //    이 값이 없으면 관리자 액션(물품 추가·수정·삭제·순서변경, 전체 조회)이 전부 거부됩니다.
 //    예전에는 미설정 시 통과시켰지만, API 키가 클라이언트에 노출되는 구조라
 //    그 상태로는 아무나 관리자 작업을 할 수 있어 fail-closed 로 바꿨습니다.
+//
+//    SPREADSHEET_ID = <데이터 시트의 스프레드시트 ID>
+//    시트에는 학생 실명·학번·연락처가 들어가므로 ID 를 공개 저장소에 두지 않습니다.
+//    (시트 자체도 링크 공유를 끄고 소유자만 접근하도록 유지할 것)
 
-var SPREADSHEET_ID = '14ajvLfg_irrWWYJzwe3n85Dug23wYEcUUHzBLzdIdBc';
+// 스프레드시트 ID 는 스크립트 속성에서 읽는다 (레포에 하드코딩하지 않음)
+function getSpreadsheetId() {
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID') || '';
+  if (!id) throw new Error('SPREADSHEET_ID script property is not set');
+  return id;
+}
 
 // 보안: API 키 검증 (간단한 토큰 기반)
 // ※ 이 키는 정적 사이트에 그대로 실려 나가므로 "비밀"이 아니다.
@@ -246,7 +255,7 @@ function normalizeLoginLog(log) {
 // 시트 유틸
 // ========================================
 function getSheet(name) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = SpreadsheetApp.openById(getSpreadsheetId());
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
