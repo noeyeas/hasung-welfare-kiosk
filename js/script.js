@@ -328,9 +328,9 @@ function rollbackLocalBorrow(record, reason) {
     return borrowKey(r) !== key;
   });
   if (borrowedRecords.length === before) return;
-  var item = items.filter(function (it) {
-    return it && it.name === record.itemName;
-  })[0];
+  // 이름 정규화 없이 찾으면 시트에서 딸려 온 앞뒤 공백 때문에 물품을 못 찾아
+  // 기록만 지워지고 재고는 1 모자란 채로 남는다
+  var item = findItemByName(record.itemName);
   if (item) item.stock = (Number(item.stock) || 0) + 1;
   saveLocalCache();
   if (typeof renderItems === 'function') renderItems();
@@ -385,7 +385,10 @@ function saveLocalCache() {
 // 대여 중복 판정 키: (studentId, itemName) — borrowedAt 미포함 (클라/서버 동일 규칙)
 // 미반납 상태는 학생·물품당 1건만 가능하므로 이 조합이 유일 키
 function borrowKey(r) {
-  return String(r && r.studentId) + '|' + String(r && r.itemName);
+  // 물품명은 정규화해서 비교한다. 원본 그대로 쓰면 "우산" 과 "우산 " 이 서로 다른 키가 되어
+  // 중복 제거를 빠져나가고, 1인 1물품 판정도 함께 흔들린다.
+  // (서버로 보내는 값은 정규화하지 않는다 - 시트 원본과 맞춰야 반납 매칭이 된다)
+  return String(r && r.studentId) + '|' + normName(r && r.itemName);
 }
 
 // 물품명 비교용 정규화. 시트에 앞뒤 공백이 섞여 들어오면 대여 기록의 itemName 과
@@ -2170,7 +2173,9 @@ on(itemGrid, "click", /*#__PURE__*/function () {
           item = items[Number(index)];
           // 반납은 인덱스가 아니라 물품명으로 찾는다. 카탈로그에서 삭제·개명된 물품도
           // 기록만 있으면 반납할 수 있어야 한다(안 그러면 1인 1물품 규칙에 영구히 갇힌다).
-          if (event.target.dataset.action === "return") {
+          // 이름이 붙어 있을 때만 이름 기준으로 갈아탄다. 이름이 없는데도 덮어쓰면
+          // 이름이 빈 물품이 만들어져 대여 기록과 영영 매칭되지 않는다(인덱스로 폴백).
+          if (action === "return" && normName(event.target.dataset.itemName)) {
             item = findItemByName(event.target.dataset.itemName) || {
               name: normName(event.target.dataset.itemName),
               missingFromCatalog: true
@@ -2193,11 +2198,12 @@ on(itemGrid, "click", /*#__PURE__*/function () {
           });
           return _context16.a(2);
         case 3:
-          if (!((action === "borrow" || action === "consume") && item.stock <= 0)) {
-            _context16.n = 4;
-            break;
-          }
-          return _context16.a(2);
+          // 재고가 0 이어도 여기서 조용히 return 하지 않는다. 다른 기기가 마지막 재고를
+          // 가져간 직후에는 이 화면이 옛 재고를 그리고 있어 버튼이 살아 있는데,
+          // 그때 눌러도 아무 반응이 없어 고장으로 보였다(아래 안내 문구는 죽은 코드였다).
+          // 재고 부족 판정은 대여·수령 각 분기가 안내와 함께 처리한다.
+          _context16.n = 4;
+          break;
         case 4:
           if (!(action === "borrow")) {
             _context16.n = 8;
@@ -2219,7 +2225,7 @@ on(itemGrid, "click", /*#__PURE__*/function () {
             _context16.n = 6;
             break;
           }
-          if (alreadyBorrowed.itemName === item.name) {
+          if (normName(alreadyBorrowed.itemName) === normName(item.name)) {
             showSelectionResult("\u26A0\uFE0F \uC774\uBBF8 ".concat(item.name, "\uC744(\uB97C) \uB300\uC5EC \uC911\uC785\uB2C8\uB2E4.\n\uBA3C\uC800 \uBC18\uB0A9 \uD6C4 \uB2E4\uC2DC \uB300\uC5EC\uD574\uC8FC\uC138\uC694."), false);
           } else {
             // \uD55C \uBC88\uC5D0 \uD55C \uAC1C\uB9CC \uB300\uC5EC\uD560 \uC218 \uC788\uB2E4\uB294 \uADDC\uCE59\uC744 \uC774\uC720\uC640 \uD568\uAED8 \uC54C\uB9B0\uB2E4
