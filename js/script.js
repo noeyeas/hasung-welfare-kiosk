@@ -316,6 +316,15 @@ function dropHeadPendingWrite(reason) {
   if (entry && entry.data && entry.data.action === 'addBorrowed' && entry.data.record) {
     rollbackLocalBorrow(entry.data.record, reason);
   }
+  // 관리자 변경은 조용히 사라지면 안 된다. 예전에는 콘솔에만 남아서, 재고를 고쳤는데
+  // 서버에 안 들어간 걸 아무도 모른 채 화면의 값만 믿게 됐다.
+  if (entry && entry.needsAdmin && typeof showConfirm === 'function') {
+    showConfirm({
+      icon: '⚠️',
+      title: '변경이 저장되지 않았습니다',
+      message: '관리자 작업(' + (entry.data && entry.data.action) + ')이 서버에 반영되지 못했습니다.\n사유: ' + reason + '\n다시 로그인해 작업을 반복해주세요.'
+    });
+  }
   savePendingWrites();
   flushPendingWrites();
 }
@@ -592,7 +601,6 @@ var verifyAdminPassword = /*#__PURE__*/function () {
 
 // 추가 관리자 모드 비밀번호 해시 (원문 노출 방지)
 var SUPER_ADMIN_SHA256_HASH = "a3cdb037448fc2bfde78fde5f165480c8ba82451899fa593de0ac2b155a66199";
-var SUPER_ADMIN_SIMPLE_HASH = "-71c82a55";
 var verifySuperAdminPassword = /*#__PURE__*/function () {
   var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(inputPassword) {
     var inputHash;

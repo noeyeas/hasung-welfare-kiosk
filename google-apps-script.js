@@ -125,10 +125,18 @@ var LOGINLOG_CAP = 1000;
 
 var MAX_ITEMS = 500;
 
+// 물품명 비교용 정규화 (클라이언트 normName 과 같은 규칙).
+// 시트에 앞뒤 공백이 섞여 들어오면 "같은 물품인데 다른 문자열"이 되어,
+// 반납 매칭이 조용히 실패하고(removed 0) 재고·기록이 어긋난다.
+// ※ 비교에만 쓴다. 시트에 기록하는 값은 원본 그대로 둔다.
+function normName(s) {
+  return String(s == null ? '' : s).trim();
+}
+
 // 대여 중복 판정 키: (studentId, itemName) — 클라/서버 동일 규칙 (borrowedAt 미포함)
 // 미반납 상태는 학생·물품당 1건만 가능하므로 이 조합이 유일 키
 function borrowKey(r) {
-  return String(r && r.studentId) + '|' + String(r && r.itemName);
+  return String(r && r.studentId) + '|' + normName(r && r.itemName);
 }
 
 // ========================================
@@ -321,8 +329,9 @@ function writeStockCell(itemName, mutate) {
   var maxCol = headers.indexOf('maxStock');
   if (nameCol === -1 || stockCol === -1) return null;
 
+  var wanted = normName(itemName);
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][nameCol]) === String(itemName)) {
+    if (normName(data[i][nameCol]) === wanted) {
       var current = Number(data[i][stockCol]) || 0;
       var max = maxCol === -1 ? 0 : (Number(data[i][maxCol]) || 0);
       var next = Math.max(0, Number(mutate(current)) || 0); // 음수 재고 방지
@@ -345,8 +354,9 @@ function getStock(itemName) {
   var nameCol = headers.indexOf('name');
   var stockCol = headers.indexOf('stock');
   if (nameCol === -1 || stockCol === -1) return null;
+  var target = normName(itemName);
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][nameCol]) === String(itemName)) {
+    if (normName(data[i][nameCol]) === target) {
       return Number(data[i][stockCol]) || 0;
     }
   }
@@ -496,18 +506,19 @@ function handlePost(action, params) {
     var item = normalizeItem(params.item);
     if (!item) return { success: false, error: 'Invalid item' };
 
-    var oldName = params.oldName ? String(params.oldName) : '';
+    var oldName = params.oldName ? normName(params.oldName) : '';
     var sheet = getSheet('items');
     var items = sheetToArray(sheet);
-    var targetName = oldName || item.name;
+    var targetName = oldName || normName(item.name);
     var idx = -1;
     for (var i = 0; i < items.length; i++) {
-      if (String(items[i].name) === targetName) { idx = i; break; }
+      if (normName(items[i].name) === targetName) { idx = i; break; }
     }
 
-    // 이름 충돌 검사 (자기 자신 제외)
+    // 이름 충돌 검사 (자기 자신 제외). 정규화해서 비교해야 "우산"과 "우산 "이
+    // 나란히 등록돼 이후 재고·반납 매칭이 어느 쪽을 맞출지 알 수 없게 되는 걸 막는다.
     for (var j = 0; j < items.length; j++) {
-      if (j !== idx && String(items[j].name) === item.name) {
+      if (j !== idx && normName(items[j].name) === normName(item.name)) {
         return { success: false, error: 'Duplicate item name' };
       }
     }
@@ -522,11 +533,11 @@ function handlePost(action, params) {
 
     // 이름을 바꾸면 대여 기록이 물품과 연결이 끊긴다 → 기록의 물품명도 함께 갱신
     var renamed = 0;
-    if (oldName && oldName !== item.name) {
+    if (oldName && oldName !== normName(item.name)) {
       var bsheet = getSheet('borrowed');
       var brows = sheetToArray(bsheet);
       brows.forEach(function (r) {
-        if (String(r.itemName) === oldName) {
+        if (normName(r.itemName) === oldName) {
           r.itemName = item.name;
           renamed++;
         }
@@ -537,12 +548,12 @@ function handlePost(action, params) {
   }
 
   if (action === 'deleteItem') {
-    var delName = String(params.name || '');
+    var delName = normName(params.name);
     if (!isValidItemName(delName)) return { success: false, error: 'Invalid item name' };
     var dsheet = getSheet('items');
     var ditems = sheetToArray(dsheet);
     var kept = ditems.filter(function (it) {
-      return String(it.name) !== delName;
+      return normName(it.name) !== delName;
     });
     if (kept.length === ditems.length) return { success: false, error: 'Item not found' };
     arrayToSheet(dsheet, kept, ITEM_HEADERS);
@@ -553,7 +564,7 @@ function handlePost(action, params) {
     var delBSheet = getSheet('borrowed');
     var delBRows = sheetToArray(delBSheet);
     var keptBorrowed = delBRows.filter(function (r) {
-      return String(r.itemName) !== delName;
+      return normName(r.itemName) !== delName;
     });
     var releasedBorrowed = delBRows.length - keptBorrowed.length;
     if (releasedBorrowed > 0) arrayToSheet(delBSheet, keptBorrowed, BORROWED_HEADERS);
@@ -653,9 +664,9 @@ function handlePost(action, params) {
     var rmSheet = getSheet('borrowed');
     var rmData = sheetToArray(rmSheet);
     var studentId = String(params.studentId);
-    var itemName = String(params.itemName);
+    var itemName = normName(params.itemName);
     var remaining = rmData.filter(function (r) {
-      return !(String(r.studentId) === studentId && String(r.itemName) === itemName);
+      return !(String(r.studentId) === studentId && normName(r.itemName) === itemName);
     });
     var removed = rmData.length - remaining.length;
     if (removed === 0) {
