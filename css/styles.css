@@ -112,10 +112,9 @@ body::before {
     width: min(1180px, 100%);
     margin: 0 auto 16px;
     padding: 12px 20px;
-    background: rgba(20, 24, 40, 0.72);
+    background: rgba(20, 24, 40, 0.88);
     border: 1px solid var(--line-soft);
     border-radius: var(--r-lg);
-    backdrop-filter: blur(10px);
 }
 .brand-logo.hidden {
     display: none !important;
@@ -967,9 +966,8 @@ select {
     margin: 0;
     padding: 20px;
     border-radius: var(--r-lg);
-    background: rgba(16, 19, 31, 0.9);
+    background: rgba(16, 19, 31, 0.96);
     border: 1px solid var(--line-soft);
-    backdrop-filter: blur(10px);
     box-shadow: var(--shadow-2);
     display: flex;
     flex-direction: column;
@@ -1046,7 +1044,6 @@ select {
     border-radius: var(--r-lg);
     padding: 20px 22px;
     box-shadow: var(--shadow-2);
-    backdrop-filter: blur(10px);
     color: var(--amber);
     display: flex;
     gap: 13px;
@@ -1091,9 +1088,10 @@ select {
     height: var(--marquee-h);
     display: flex;
     align-items: center;
-    background: rgba(10, 12, 20, 0.94);
+    /* backdrop-filter 를 두면 안쪽 텍스트가 흐르는 매 프레임마다 뒤 화면을 다시
+       블러 처리해서, 화면 전체가 상시로 느려진다(확인창 지연의 주범). */
+    background: rgba(10, 12, 20, 0.98);
     border-top: 1px solid var(--line-soft);
-    backdrop-filter: blur(10px);
     overflow: hidden;
     z-index: 9999;
     padding: 0;
@@ -1101,6 +1099,7 @@ select {
 .security-marquee-inner {
     display: flex;
     white-space: nowrap;
+    will-change: transform;
     animation: marquee-scroll 60s linear infinite;
 }
 .security-marquee-inner span {
