@@ -1853,26 +1853,11 @@ on(itemGrid, 'mousemove', function (e) {
   itemGrid.scrollTop = scrollTop - walk;
 });
 
-// 터치 이벤트 지원
-var touchStartY = 0;
-var touchScrollTop = 0;
-on(itemGrid, 'touchstart', function (e) {
-  if (e.target.tagName !== 'BUTTON') {
-    touchStartY = e.touches[0].pageY;
-    touchScrollTop = itemGrid.scrollTop;
-  }
-}, {
-  passive: true
-});
-on(itemGrid, 'touchmove', function (e) {
-  if (e.target.tagName !== 'BUTTON') {
-    var touchY = e.touches[0].pageY;
-    var walk = (touchY - touchStartY) * 2;
-    itemGrid.scrollTop = touchScrollTop - walk;
-  }
-}, {
-  passive: true
-});
+// 터치 스크롤은 브라우저 기본 동작에 맡긴다.
+// 예전에는 passive touchmove 에서 scrollTop 을 2배속으로 직접 넣었는데,
+// passive 라 브라우저의 관성 스크롤이 동시에 돌아간다. 두 개가 매 프레임
+// 서로 다른 위치로 밀어대서 목록이 지지직거리며 떨렸다.
+// .item-grid 는 overflow-y: auto 라 손대지 않아도 그대로 스크롤된다.
 
 // STEP3 관리자 모드 물품 재고 현황 드래그 스크롤 기능
 var adminIsDragging = false;
@@ -1903,26 +1888,7 @@ on(adminStockTable, 'mousemove', function (e) {
   adminStockTable.scrollTop = adminScrollTop - walk;
 });
 
-// 터치 이벤트 지원
-var adminTouchStartY = 0;
-var adminTouchScrollTop = 0;
-on(adminStockTable, 'touchstart', function (e) {
-  if (e.target.tagName !== 'BUTTON') {
-    adminTouchStartY = e.touches[0].pageY;
-    adminTouchScrollTop = adminStockTable.scrollTop;
-  }
-}, {
-  passive: true
-});
-on(adminStockTable, 'touchmove', function (e) {
-  if (e.target.tagName !== 'BUTTON') {
-    var touchY = e.touches[0].pageY;
-    var walk = (touchY - adminTouchStartY) * 2;
-    adminStockTable.scrollTop = adminTouchScrollTop - walk;
-  }
-}, {
-  passive: true
-});
+// 관리자 재고 표도 같은 이유로 터치 스크롤은 브라우저에 맡긴다.
 
 // 초기 로드 시 홈 화면으로
 async function initApp() {
