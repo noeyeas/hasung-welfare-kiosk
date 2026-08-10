@@ -388,6 +388,29 @@ function borrowKey(r) {
   return String(r && r.studentId) + '|' + String(r && r.itemName);
 }
 
+// 물품명 비교용 정규화. 시트에 앞뒤 공백이 섞여 들어오면 대여 기록의 itemName 과
+// 물품 목록의 name 이 "같은 물품인데 다른 문자열"이 되어 반납 목록에서 사라졌다.
+function normName(s) {
+  return String(s == null ? '' : s).trim();
+}
+
+// 정규화된 이름으로 물품 카탈로그에서 찾기 (없으면 null)
+function findItemByName(name) {
+  var target = normName(name);
+  for (var i = 0; i < items.length; i++) {
+    if (normName(items[i].name) === target) return items[i];
+  }
+  return null;
+}
+
+// 현재 사용자의 미반납 기록
+function myBorrowedRecords() {
+  if (!currentUser) return [];
+  return borrowedRecords.filter(function (r) {
+    return String(r.studentId) === String(currentUser.studentId);
+  });
+}
+
 // (studentId, itemName) 기준 중복 제거 - 먼저 등장한 레코드 유지
 function dedupBorrowed(rows) {
   var seen = {};
@@ -933,13 +956,19 @@ var flowMode = 'borrow';
 
 // 홈 화면 재고 칩 렌더링
 var homeStock = document.getElementById("homeStock");
+// 직전에 그린 결과. 같은 내용을 다시 써 넣으면 DOM 이 통째로 교체되면서
+// 화면이 한 번 비었다 채워져 깜빡인다(빠르게 조작할수록 심함). 그래서 비교 후 건너뛴다.
+var lastHomeStockHtml = null;
 var renderHomeStock = function renderHomeStock() {
   if (!homeStock) return;
   if (!Array.isArray(items) || items.length === 0) {
-    homeStock.innerHTML = '';
+    if (lastHomeStockHtml !== '') {
+      homeStock.innerHTML = '';
+      lastHomeStockHtml = '';
+    }
     return;
   }
-  homeStock.innerHTML = items.slice(0, 6).map(function (item) {
+  var homeStockHtml = items.slice(0, 6).map(function (item) {
     var stock = parseInt(item.stock) || 0;
     var cls = 'stock-chip';
     if (stock <= 0) cls += ' is-out';else if (stock <= 2) cls += ' is-low';
@@ -947,6 +976,9 @@ var renderHomeStock = function renderHomeStock() {
     var label = item.type === '소모품' ? stock <= 0 ? '소진' : stock <= 5 ? '부족' : '충분' : stock + '개';
     return '<span class="' + cls + '">' + (item.icon ? escapeHtml(item.icon) + ' ' : '') + escapeHtml(item.name) + ' <b>' + label + '</b></span>';
   }).join('');
+  if (homeStockHtml === lastHomeStockHtml) return;
+  homeStock.innerHTML = homeStockHtml;
+  lastHomeStockHtml = homeStockHtml;
 };
 
 // 진행 단계 표시 갱신 (1 정보 입력 → 2 물품 선택)
@@ -1669,6 +1701,9 @@ if (filterConsumeBtn) {
     return setFilter('consume');
   });
 }
+// 그리드도 같은 이유로 직전 결과를 기억해 둔다. 여기는 twemoji 가 이모지를 CDN 이미지로
+// 바꿔 달기까지 해서, 다시 그릴 때마다 글자→이미지 교체가 눈에 띄게 번쩍인다.
+var lastItemGridHtml = null;
 var renderItems = function renderItems() {
   if (!itemGrid) return;
   // 재고가 바뀔 때마다 홈 화면 칩도 같이 갱신한다
@@ -1678,21 +1713,27 @@ var renderItems = function renderItems() {
   var filteredItems = items;
   var isReturnFlow = flowMode === 'return';
 
-  // 반납 흐름에서는 이 사용자가 실제로 빌린 물품만 보여준다
+  // 반납 흐름에서는 이 사용자가 실제로 빌린 물품만 보여준다.
+  // 카탈로그를 걸러내는 방식이면 물품이 삭제·개명되었거나 이름에 공백이 섞인 순간
+  // 목록이 비어 반납할 방법이 사라진다(완료 화면에는 기록이 그대로 남아 혼란).
+  // 그래서 목록의 출처를 '내 대여 기록' 쪽으로 뒤집고, 카탈로그에 없으면 임시 카드로 띄운다.
   if (isReturnFlow) {
-    var myItems = {};
-    borrowedRecords.forEach(function (record) {
-      if (currentUser && String(record.studentId) === String(currentUser.studentId)) {
-        myItems[record.itemName] = true;
-      }
-    });
-    filteredItems = filteredItems.filter(function (item) {
-      return myItems[item.name];
+    filteredItems = myBorrowedRecords().map(function (record) {
+      return findItemByName(record.itemName) || {
+        name: normName(record.itemName),
+        type: '대여',
+        stock: 0,
+        icon: '📦',
+        notice: '',
+        missingFromCatalog: true
+      };
     });
   }
 
-  // 타입 필터링 (반납 흐름에서는 필터 UI가 숨겨져 있어 적용되지 않음)
-  if (currentFilter === 'borrow') {
+  // 타입 필터링 (반납 흐름에서는 필터 UI가 숨겨져 있으므로 이전 선택이 남아 있어도 무시)
+  if (isReturnFlow) {
+    // 반납 목록은 이미 '내가 빌린 것'으로 확정되어 있어 추가 필터가 필요 없다
+  } else if (currentFilter === 'borrow') {
     filteredItems = filteredItems.filter(function (item) {
       return item.type === '대여';
     });
@@ -1710,10 +1751,14 @@ var renderItems = function renderItems() {
   }
   if (filteredItems.length === 0) {
     var message = isReturnFlow ? '반납할 물품이 없습니다. 대여 중인 물품이 확인되지 않아요.' : searchQuery ? '"' + escapeHtml(searchQuery) + '"에 대한 검색 결과가 없습니다.' : currentFilter === 'borrow' ? '대여 가능한 물품이 없습니다.' : currentFilter === 'consume' ? '소모품이 없습니다.' : '물품이 없습니다.';
-    itemGrid.innerHTML = '<div class="item-grid-empty">' + message + '</div>';
+    var emptyHtml = '<div class="item-grid-empty">' + message + '</div>';
+    if (emptyHtml !== lastItemGridHtml) {
+      itemGrid.innerHTML = emptyHtml;
+      lastItemGridHtml = emptyHtml;
+    }
     return;
   }
-  itemGrid.innerHTML = filteredItems.map(function (item) {
+  var gridHtml = filteredItems.map(function (item) {
     // 원본 배열에서의 인덱스 찾기
     var originalIndex = items.indexOf(item);
     var stock = parseInt(item.stock) || 0;
@@ -1727,7 +1772,8 @@ var renderItems = function renderItems() {
     var actionsHtml;
     if (isReturnFlow) {
       // 반납 흐름: 목록 자체가 대여 중인 물품이므로 반납 버튼만 노출한다
-      actionsHtml = '<button class="borrow" data-action="return" data-index="' + originalIndex + '">반납하기</button>';
+      // 반납 버튼은 인덱스 대신 물품명을 넘긴다 (카탈로그에 없는 임시 카드도 처리해야 함)
+      actionsHtml = '<button class="borrow" data-action="return" data-index="' + originalIndex + '" data-item-name="' + escapeHtml(item.name) + '">반납하기</button>';
     } else if (item.type === "대여") {
       // 대여 흐름에서는 대여 버튼만 둔다. 반납은 홈의 '반납하기'로 들어오는
       // 별도 흐름이 담당하므로 여기 반납 버튼은 오히려 오조작을 부른다.
@@ -1741,7 +1787,7 @@ var renderItems = function renderItems() {
       var myRecord = null;
       for (var i = 0; i < borrowedRecords.length; i++) {
         var r = borrowedRecords[i];
-        if (currentUser && String(r.studentId) === String(currentUser.studentId) && r.itemName === item.name) {
+        if (currentUser && String(r.studentId) === String(currentUser.studentId) && normName(r.itemName) === normName(item.name)) {
           myRecord = r;
           break;
         }
@@ -1753,6 +1799,10 @@ var renderItems = function renderItems() {
 
     return '<div class="item-card">' + iconHtml + '<div class="item-card-info">' + '<strong>' + escapeHtml(item.name) + '</strong>' + '<small>' + metaText + '</small>' + '</div>' + '<div class="item-card-actions">' + actionsHtml + '</div>' + '</div>';
   }).join("");
+  // 내용이 그대로면 DOM 도 twemoji 변환도 건드리지 않는다
+  if (gridHtml === lastItemGridHtml) return;
+  itemGrid.innerHTML = gridHtml;
+  lastItemGridHtml = gridHtml;
   // Twemoji로 이모지를 이미지로 변환 (구형 브라우저 지원)
   if (typeof twemoji !== 'undefined') {
     twemoji.parse(itemGrid, {
@@ -2118,6 +2168,14 @@ on(itemGrid, "click", /*#__PURE__*/function () {
           isProcessing = true;
           _event$target$dataset = event.target.dataset, action = _event$target$dataset.action, index = _event$target$dataset.index;
           item = items[Number(index)];
+          // 반납은 인덱스가 아니라 물품명으로 찾는다. 카탈로그에서 삭제·개명된 물품도
+          // 기록만 있으면 반납할 수 있어야 한다(안 그러면 1인 1물품 규칙에 영구히 갇힌다).
+          if (event.target.dataset.action === "return") {
+            item = findItemByName(event.target.dataset.itemName) || {
+              name: normName(event.target.dataset.itemName),
+              missingFromCatalog: true
+            };
+          }
           // 목록이 다시 그려지는 사이 인덱스가 어긋나면 item 이 없을 수 있다.
           // 예전에는 곧바로 item.stock 을 읽어 예외로 죽었다.
           if (!item || !action) {
@@ -2237,7 +2295,7 @@ on(itemGrid, "click", /*#__PURE__*/function () {
             break;
           }
           borrowedIndex = borrowedRecords.findIndex(function (record) {
-            return String(record.studentId) === String(currentUser.studentId) && record.itemName === item.name;
+            return String(record.studentId) === String(currentUser.studentId) && normName(record.itemName) === normName(item.name);
           });
           if (!(borrowedIndex === -1)) {
             _context16.n = 9;
@@ -2248,7 +2306,10 @@ on(itemGrid, "click", /*#__PURE__*/function () {
         case 9:
           removedRecord = borrowedRecords[borrowedIndex];
           borrowedRecords.splice(borrowedIndex, 1);
-          item.stock = (Number(item.stock) || 0) + 1;
+          // 카탈로그에 없는 물품이면 되돌릴 재고 자체가 없다
+          if (!item.missingFromCatalog) {
+            item.stock = (Number(item.stock) || 0) + 1;
+          }
           saveLocalCache(); // 로컬 캐시만 저장 (서버는 아래 증분 동기화로 처리)
           // 재고 복구는 서버가 removeBorrowed 안에서 실제 삭제된 건수만큼 +1 한다
           // (중복 반납 요청이 재고를 부풀리지 않도록 서버가 멱등 처리)
@@ -3245,7 +3306,30 @@ var applyNumPadKey = function applyNumPadKey(key) {
   numPadTarget.dispatchEvent(new Event("input", { bubbles: true }));
 };
 
+// pointerdown 에서 preventDefault 를 하면 브라우저가 :active 를 걸어 주지
+// 않아, 눌러도 키가 반응하지 않는 것처럼 보인다(=느리게 느껴진다).
+// 눌린 표시를 직접 붙였다 떼어 준다.
+var attachPressFeedback = function attachPressFeedback(pad, selector) {
+  if (!pad) return;
+  var pressed = null;
+  var release = function release() {
+    if (pressed) pressed.classList.remove("is-pressed");
+    pressed = null;
+  };
+  pad.addEventListener("pointerdown", function (e) {
+    var key = e.target.closest ? e.target.closest(selector) : null;
+    if (!key) return;
+    release();
+    pressed = key;
+    key.classList.add("is-pressed");
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (type) {
+    pad.addEventListener(type, release);
+  });
+};
+
 if (numPad) {
+  attachPressFeedback(numPad, ".numpad-key");
   // pointerdown 에서 바로 입력한다. click 은 터치에서 touchend 이후에야
   // 오기 때문에 누른 느낌과 글자가 찍히는 시점이 어긋나 느리게 보인다.
   // 기본 동작을 막아야 입력칸이 포커스를 잃지 않고, click 도 뒤따르지 않는다.
@@ -3475,6 +3559,7 @@ var openHanPad = function openHanPad(input) {
 };
 
 if (hanPad) {
+  attachPressFeedback(hanPad, ".hanpad-key");
   // 숫자 키패드와 같은 이유로 pointerdown 에서 바로 처리한다
   hanPad.addEventListener("pointerdown", function (e) {
     e.preventDefault();
