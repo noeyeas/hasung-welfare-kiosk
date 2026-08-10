@@ -1545,7 +1545,8 @@ body.hanpad-open .user-layout {
     cursor: pointer;
     user-select: none;
 }
-.numpad-key:active {
+.numpad-key:active,
+.numpad-key.is-pressed {
     background: var(--line);
 }
 .numpad-key.is-muted {
@@ -1600,7 +1601,8 @@ body.hanpad-open .user-layout {
     cursor: pointer;
     user-select: none;
 }
-.hanpad-key:active {
+.hanpad-key:active,
+.hanpad-key.is-pressed {
     background: var(--line);
 }
 /* 글자가 들어가는 키는 자모 키(한 글자)보다 넓게 잡아야 줄바꿈 없이 들어간다 */
